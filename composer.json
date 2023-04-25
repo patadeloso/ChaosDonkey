@@ -1,0 +1,23 @@
+{
+    "name": "shaunmcmanus/chaosdonkey",
+    "description": "M2 module that causes chaos",
+    "type": "magento2-module",
+    "minimum-stability": "stable",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Shaun McManus",
+            "email": "shaun.mcmanus@gmail.com"
+        }
+    ],
+    "require": {
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "ShaunMcManus\\ChaosDonkey\\": ""
+        }
+    }
+}
