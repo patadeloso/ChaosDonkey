@@ -27,6 +27,7 @@ class ChaosDonkey extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Code goes here ...
+        $output->writeln('ChaosDonkey kicks your Magento')
         return 0;
     }
 }
