@@ -7,7 +7,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class ChaosDonkey extends Command
+class ChaosDonkeyKick extends Command
 {
 
     /**
@@ -16,7 +16,7 @@ class ChaosDonkey extends Command
     protected function configure()
     {
         $this->setName('chaosdonkey:kick')
-            ->setDescription('A module that causes chaos randomly');
+            ->setDescription('Taunts ChaosDonkey into kicking your Magento');
 
         parent::configure();
     }
@@ -27,7 +27,18 @@ class ChaosDonkey extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Code goes here ...
-        $output->writeln('ChaosDonkey kicks your Magento')
+        // Needs RNG
+        // Needs to launch chosen kick
+        $kick = rand(1,20);
+
+        $output->writeln('ChaosDonkeyKick kicks your Magento. You rolled a ' . $kick);
+        match ($kick) {
+            1 => $output->writeln('Critical Failure! Better check all of your donkeys.'),
+            20 => $output->writeln('Critical Success! Yee Haw the donkeys are loose!'),
+            default => $output->writeLn('The donkeys are napping'),
+        };
+
+
         return 0;
     }
 }

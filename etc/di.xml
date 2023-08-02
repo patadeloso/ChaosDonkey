@@ -3,7 +3,8 @@
     <type name="Magento\Framework\Console\CommandListInterface">
         <arguments>
             <argument name="commands" xsi:type="array">
-                <item name="chaosDonkey" xsi:type="object">ShaunMcManus\ChaosDonkey\Console\Command\ChaosDonkey</item>
+                <item name="status" xsi:type="object">ShaunMcManus\ChaosDonkey\Console\Command\ChaosDonkeyStatus</item>
+                <item name="kick" xsi:type="object">ShaunMcManus\ChaosDonkey\Console\Command\ChaosDonkeyKick</item>
             </argument>
         </arguments>
     </type>

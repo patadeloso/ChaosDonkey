@@ -7,7 +7,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class ChaosDonkeyKick extends Command
+class ChaosDonkeyStatus extends Command
 {
 
     /**
@@ -15,8 +15,8 @@ class ChaosDonkeyKick extends Command
      */
     protected function configure()
     {
-        $this->setName('chaosdonkey:kick')
-            ->setDescription('A module that causes chaos randomly');
+        $this->setName('chaosdonkey:status')
+            ->setDescription('Show various config and statuses');
 
         parent::configure();
     }
@@ -27,7 +27,16 @@ class ChaosDonkeyKick extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Code goes here ...
-        $output->writeln('ChaosDonkeyKick kicks your Magento')
+        // Need to check various Config and Status stuff
+        // Going to want to load the whole module config and status from Magento
+
+
+        $output->writeln('Config and Status');
+        $output->writeln('Enabled: ');
+        $output->writeln('Running:');
+        $output->writeln('Last run:');
+        $output->writeln('Last kick:');
+
         return 0;
     }
 }
