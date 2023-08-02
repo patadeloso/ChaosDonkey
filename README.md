@@ -27,3 +27,7 @@ Critical Failure! Better check all of your donkeys.
 ❯ bin/magento chaosdonkey:kick
 ChaosDonkeyKick kicks your Magento. You rolled a 20
 Critical Success! Yee Haw the donkeys are loose!
+
+❯ bin/magento chaosdonkey:kick
+ChaosDonkeyKick kicks your Magento. You rolled a 2
+Reindexing EVERYTHING!
