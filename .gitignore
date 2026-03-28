@@ -43,3 +43,6 @@
 /var/package/*
 !/var/package/*.xml
 
+# Local development / test artifacts
+/vendor/
+/.phpunit.cache/
