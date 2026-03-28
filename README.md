@@ -1,33 +1,42 @@
 # ChaosDonkey
-Magento 2 module to cause chaos
+Magento 2 module to cause operational chaos on command.
 
-Chaos Donkey can be ran via CLI or configured as a Magento Cron job.
+## Commands
 
-Chaos Donkey will roll a D20 and decide your fate.
+### `bin/magento chaosdonkey:kick`
+Rolls a D20 and executes a mapped outcome.
 
-1: Critical failure
-2-?: Indexers
-?-?: Caches
-?-?: High traffic to non-cached pages
-?-?: ?
-20: Critical success
+- If `admin/chaos_donkey/enabled` is disabled, exits early with a clear message.
+- If enabled, saves:
+  - `admin/chaos_donkey/last_run` (ISO-8601 timestamp)
+  - `admin/chaos_donkey/last_kick` (rolled value)
+  - `admin/chaos_donkey/last_outcome` (outcome key)
 
-These are some unlucky rolls
+Current outcome mapping:
+- `1`: critical failure message
+- `2`: reindex all indexers
+- `20`: critical success message
+- default: napping message
 
-❯ bin/magento chaosdonkey:kick
-ChaosDonkeyKick kicks your Magento. You rolled a 6
-The donkeys are napping
+### `bin/magento chaosdonkey:status`
+Prints real module status values from config/state:
+- Enabled (`Yes`/`No`)
+- Last run (`Never` if unset)
+- Last kick (`Never` if unset)
+- Last outcome (`Never` if unset)
 
-    ~/Sites/magento  on   main ?12 ▓▒░──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-❯ bin/magento chaosdonkey:kick
-ChaosDonkeyKick kicks your Magento. You rolled a 1
-Critical Failure! Better check all of your donkeys.
+## Reindex Behavior
 
-    ~/Sites/magento  on   main ?12 ▓▒░──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-❯ bin/magento chaosdonkey:kick
-ChaosDonkeyKick kicks your Magento. You rolled a 20
-Critical Success! Yee Haw the donkeys are loose!
+On roll `2`, `ReindexAll` iterates all Magento indexers and:
+- prints per-indexer progress
+- runs `reindexAll()` on each indexer
+- catches per-indexer exceptions and continues reindexing the rest
 
-❯ bin/magento chaosdonkey:kick
-ChaosDonkeyKick kicks your Magento. You rolled a 2
-Reindexing EVERYTHING!
+## Local Unit Tests
+
+This repository contains standalone unit tests for module logic and command orchestration.
+
+```bash
+composer install
+vendor/bin/phpunit
+```

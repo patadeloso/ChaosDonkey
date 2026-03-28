@@ -3,17 +3,25 @@ declare(strict_types = 1);
 
 namespace ShaunMcManus\ChaosDonkey\Console\Command;
 
+use ShaunMcManus\ChaosDonkey\Model\Config;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ChaosDonkeyStatus extends Command
 {
+    private Config $config;
+
+    public function __construct(Config $config)
+    {
+        parent::__construct();
+        $this->config = $config;
+    }
 
     /**
      * @inheritdoc
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this->setName('chaosdonkey:status')
             ->setDescription('Show various config and statuses');
@@ -24,21 +32,20 @@ class ChaosDonkeyStatus extends Command
     /**
      * @inheritdoc
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // Code goes here ...
-        // Need to check various Config and Status stuff
-        // Going to want to load the whole module config and status from Magento
+        $enabled = $this->config->isEnabled() ? 'Yes' : 'No';
+        $lastRun = $this->config->getLastRun() ?? 'Never';
+        $lastKick = $this->config->getLastKick() ?? 'Never';
+        $lastOutcome = $this->config->getLastOutcome() ?? 'Never';
 
+        $output->writeln('ChaosDonkey Status');
+        $output->writeln('Enabled: ' . $enabled);
+        $output->writeln('Last run: ' . $lastRun);
+        $output->writeln('Last kick: ' . $lastKick);
+        $output->writeln('Last outcome: ' . $lastOutcome);
 
-        $output->writeln('Config and Status');
-        $output->writeln('Enabled: ');
-        $output->writeln('Running:');
-        $output->writeln('Last run:');
-        $output->writeln('Last kick:');
-
-        return 0;
+        return Command::SUCCESS;
     }
 }
-
 
