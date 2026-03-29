@@ -59,3 +59,19 @@ This repository contains standalone unit tests for module logic and command orch
 composer install
 vendor/bin/phpunit
 ```
+
+## Simplified PR Workflow
+
+Use the helper scripts in `scripts/` for a shorter GitHub flow.
+
+Start work on a new branch and open a PR draft/fill flow:
+
+```bash
+scripts/pr-start.sh feat/my-change
+```
+
+Merge PR with squash, delete branches, and sync local `main`:
+
+```bash
+scripts/pr-finish.sh
+```
