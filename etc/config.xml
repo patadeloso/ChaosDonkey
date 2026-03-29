@@ -5,6 +5,9 @@
         <admin>
             <chaos_donkey>
                 <enabled>0</enabled>
+                <enable_reindex_all>1</enable_reindex_all>
+                <enable_cache_flush>1</enable_cache_flush>
+                <enable_graphql_pipeline_stress>1</enable_graphql_pipeline_stress>
             </chaos_donkey>
         </admin>
     </default>
