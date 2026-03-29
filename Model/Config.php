@@ -12,6 +12,9 @@ class Config
     public const CONFIG_PATH_ENABLE_REINDEX_ALL = 'admin/chaos_donkey/enable_reindex_all';
     public const CONFIG_PATH_ENABLE_CACHE_FLUSH = 'admin/chaos_donkey/enable_cache_flush';
     public const CONFIG_PATH_ENABLE_GRAPHQL_PIPELINE_STRESS = 'admin/chaos_donkey/enable_graphql_pipeline_stress';
+    public const CONFIG_PATH_CRON_ENABLED = 'admin/chaos_donkey/cron_enabled';
+    public const CONFIG_PATH_CRON_EXPRESSION = 'admin/chaos_donkey/cron_expression';
+    public const CONFIG_PATH_CRON_ALLOWED_HOURS = 'admin/chaos_donkey/cron_allowed_hours';
     public const CONFIG_PATH_LAST_RUN = 'admin/chaos_donkey/last_run';
     public const CONFIG_PATH_LAST_KICK = 'admin/chaos_donkey/last_kick';
     public const CONFIG_PATH_LAST_OUTCOME = 'admin/chaos_donkey/last_outcome';
@@ -45,6 +48,70 @@ class Config
     public function isGraphQlPipelineStressEnabled(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): bool
     {
         return $this->scopeConfig->isSetFlag(self::CONFIG_PATH_ENABLE_GRAPHQL_PIPELINE_STRESS, $scopeType, $scopeCode);
+    }
+
+    public function isCronEnabled(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(self::CONFIG_PATH_CRON_ENABLED, $scopeType, $scopeCode);
+    }
+
+    public function getCronExpression(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): ?string
+    {
+        $value = $this->scopeConfig->getValue(self::CONFIG_PATH_CRON_EXPRESSION, $scopeType, $scopeCode);
+
+        if ($value === null) {
+            return null;
+        }
+
+        $normalizedValue = trim((string) $value);
+
+        return $normalizedValue === '' ? null : $normalizedValue;
+    }
+
+    public function getCronAllowedHoursRaw(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): ?string
+    {
+        $value = $this->scopeConfig->getValue(self::CONFIG_PATH_CRON_ALLOWED_HOURS, $scopeType, $scopeCode);
+
+        if ($value === null) {
+            return null;
+        }
+
+        $normalizedValue = trim((string) $value);
+
+        return $normalizedValue === '' ? null : $normalizedValue;
+    }
+
+    /**
+     * @return array<int>
+     */
+    public function getCronAllowedHours(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): array
+    {
+        $rawValue = $this->getCronAllowedHoursRaw($scopeType, $scopeCode);
+        if ($rawValue === null) {
+            return [];
+        }
+
+        $allowedHours = [];
+
+        foreach (explode(',', $rawValue) as $token) {
+            $normalizedToken = trim($token);
+
+            if ($normalizedToken === '' || !ctype_digit($normalizedToken)) {
+                continue;
+            }
+
+            $hour = (int) $normalizedToken;
+            if ($hour < 0 || $hour > 23) {
+                continue;
+            }
+
+            $allowedHours[] = $hour;
+        }
+
+        $allowedHours = array_values(array_unique($allowedHours));
+        sort($allowedHours);
+
+        return $allowedHours;
     }
 
     public function isActionEnabled(string $actionCode): bool

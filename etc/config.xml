@@ -8,6 +8,9 @@
                 <enable_reindex_all>1</enable_reindex_all>
                 <enable_cache_flush>1</enable_cache_flush>
                 <enable_graphql_pipeline_stress>1</enable_graphql_pipeline_stress>
+                <cron_enabled>0</cron_enabled>
+                <cron_expression>*/30 * * * *</cron_expression>
+                <cron_allowed_hours></cron_allowed_hours>
             </chaos_donkey>
         </admin>
     </default>
