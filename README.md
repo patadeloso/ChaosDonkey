@@ -29,6 +29,31 @@ Current outcome mapping:
 
 For action outcomes, `chaosdonkey:kick` resolves an action code and executes a DI-wired action service from the action pool.
 
+## Cron Automation
+
+ChaosDonkey can also run on Magento cron using the same kick execution pipeline as the CLI command.
+
+Cron settings live under `admin/chaos_donkey`:
+- `admin/chaos_donkey/cron_enabled`
+- `admin/chaos_donkey/cron_expression`
+- `admin/chaos_donkey/cron_allowed_hours`
+
+Magento reads the schedule expression from `admin/chaos_donkey/cron_expression` for the cron job definition.
+
+`admin/chaos_donkey/cron_allowed_hours` accepts comma-separated hour values from `0` to `23`.
+Examples:
+- `1,2,3`
+- `0, 12, 23`
+- empty value means no hour restriction
+
+Cron execution skips when:
+- the module is disabled
+- cron execution is disabled
+- `cron_allowed_hours` is invalid
+- the current hour is outside the allowed window
+
+When it does run, cron delegates to the same kick execution pipeline as `chaosdonkey:kick`, so rerolls, action toggles, and state persistence behave the same way.
+
 ### `bin/magento chaosdonkey:status`
 Prints real module status values from config/state:
 - Enabled (`Yes`/`No`)
