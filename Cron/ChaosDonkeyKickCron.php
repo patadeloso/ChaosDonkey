@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace ShaunMcManus\ChaosDonkey\Cron;
 
+use Psr\Log\LoggerInterface;
 use ShaunMcManus\ChaosDonkey\Model\Config;
 use ShaunMcManus\ChaosDonkey\Model\KickExecutor;
 
@@ -10,7 +11,8 @@ class ChaosDonkeyKickCron
 {
     public function __construct(
         private Config $config,
-        private KickExecutor $kickExecutor
+        private KickExecutor $kickExecutor,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -26,6 +28,13 @@ class ChaosDonkeyKickCron
 
         if (!$this->config->isCronEnabled()) {
             $this->logMessage('Skipping ChaosDonkey cron because cron execution is disabled.');
+
+            return;
+        }
+
+        $cronExpression = $this->config->getCronExpression();
+        if (!$this->isValidCronExpression($cronExpression)) {
+            $this->logMessage('Skipping ChaosDonkey cron because cron_expression is invalid.');
 
             return;
         }
@@ -65,8 +74,28 @@ class ChaosDonkeyKickCron
         return (int) (new \DateTimeImmutable())->format('G');
     }
 
+    protected function isValidCronExpression(?string $cronExpression): bool
+    {
+        if ($cronExpression === null) {
+            return false;
+        }
+
+        $fields = preg_split('/\s+/', trim($cronExpression));
+        if (!is_array($fields) || count($fields) !== 5) {
+            return false;
+        }
+
+        foreach ($fields as $field) {
+            if ($field === '' || preg_match('/^[\d*\/,\-]+$/', $field) !== 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     protected function logMessage(string $message): void
     {
-        error_log('[ChaosDonkey] ' . $message);
+        $this->logger->info('[ChaosDonkey] ' . $message);
     }
 }

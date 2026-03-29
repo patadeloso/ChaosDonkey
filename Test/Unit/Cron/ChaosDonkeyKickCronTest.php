@@ -5,6 +5,7 @@ namespace ShaunMcManus\ChaosDonkey\Test\Unit\Cron;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use ShaunMcManus\ChaosDonkey\Cron\ChaosDonkeyKickCron;
 use ShaunMcManus\ChaosDonkey\Model\Config;
 use ShaunMcManus\ChaosDonkey\Model\KickExecutor;
@@ -13,11 +14,13 @@ class ChaosDonkeyKickCronTest extends TestCase
 {
     private Config&MockObject $config;
     private KickExecutor&MockObject $kickExecutor;
+    private LoggerInterface $logger;
 
     protected function setUp(): void
     {
         $this->config = $this->createMock(Config::class);
         $this->kickExecutor = $this->createMock(KickExecutor::class);
+        $this->logger = new NullLoggerStub();
     }
 
     public function testItSkipsWhenModuleDisabled(): void
@@ -26,6 +29,7 @@ class ChaosDonkeyKickCronTest extends TestCase
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(false);
         $this->config->expects(self::never())->method('isCronEnabled');
+        $this->config->expects(self::never())->method('getCronExpression');
         $this->kickExecutor->expects(self::never())->method('execute');
 
         $cron->execute();
@@ -42,6 +46,7 @@ class ChaosDonkeyKickCronTest extends TestCase
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
         $this->config->expects(self::once())->method('isCronEnabled')->willReturn(false);
+        $this->config->expects(self::never())->method('getCronExpression');
         $this->kickExecutor->expects(self::never())->method('execute');
 
         $cron->execute();
@@ -58,6 +63,7 @@ class ChaosDonkeyKickCronTest extends TestCase
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
         $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
         $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
         $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
         $this->kickExecutor->expects(self::never())->method('execute');
@@ -76,6 +82,7 @@ class ChaosDonkeyKickCronTest extends TestCase
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
         $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
         $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
         $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
         $this->kickExecutor
@@ -102,6 +109,7 @@ class ChaosDonkeyKickCronTest extends TestCase
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
         $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
         $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('foo, 99');
         $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([]);
         $this->kickExecutor->expects(self::never())->method('execute');
@@ -114,13 +122,32 @@ class ChaosDonkeyKickCronTest extends TestCase
         ], $cron->messages);
     }
 
-    private function createCron(int $currentHour): TestCronHarness
+    public function testItSkipsWhenCronExpressionIsInvalid(): void
     {
-        return new TestCronHarness($this->config, $this->kickExecutor, $currentHour);
+        $cron = $this->createCron(10);
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('invalid cron');
+        $this->config->expects(self::never())->method('getCronAllowedHoursRaw');
+        $this->config->expects(self::never())->method('getCronAllowedHours');
+        $this->kickExecutor->expects(self::never())->method('execute');
+
+        $cron->execute();
+
+        self::assertSame([
+            'ChaosDonkey cron started.',
+            'Skipping ChaosDonkey cron because cron_expression is invalid.',
+        ], $cron->messages);
+    }
+
+    private function createCron(int $currentHour): CronHarness
+    {
+        return new CronHarness($this->config, $this->kickExecutor, $this->logger, $currentHour);
     }
 }
 
-class TestCronHarness extends ChaosDonkeyKickCron
+class CronHarness extends ChaosDonkeyKickCron
 {
     /**
      * @var list<string>
@@ -130,9 +157,10 @@ class TestCronHarness extends ChaosDonkeyKickCron
     public function __construct(
         Config $config,
         KickExecutor $kickExecutor,
+        LoggerInterface $logger,
         private int $currentHour
     ) {
-        parent::__construct($config, $kickExecutor);
+        parent::__construct($config, $kickExecutor, $logger);
     }
 
     protected function getCurrentHour(): int
@@ -143,5 +171,44 @@ class TestCronHarness extends ChaosDonkeyKickCron
     protected function logMessage(string $message): void
     {
         $this->messages[] = $message;
+    }
+}
+
+class NullLoggerStub implements LoggerInterface
+{
+    public function emergency($message, array $context = []): void
+    {
+    }
+
+    public function alert($message, array $context = []): void
+    {
+    }
+
+    public function critical($message, array $context = []): void
+    {
+    }
+
+    public function error($message, array $context = []): void
+    {
+    }
+
+    public function warning($message, array $context = []): void
+    {
+    }
+
+    public function notice($message, array $context = []): void
+    {
+    }
+
+    public function info($message, array $context = []): void
+    {
+    }
+
+    public function debug($message, array $context = []): void
+    {
+    }
+
+    public function log($level, $message, array $context = []): void
+    {
     }
 }

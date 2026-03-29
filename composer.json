@@ -23,7 +23,8 @@
             "ShaunMcManus\\ChaosDonkey\\Test\\": "Test/",
             "Magento\\Framework\\": "Test/Stubs/Magento/Framework/",
             "Magento\\Indexer\\": "Test/Stubs/Magento/Indexer/",
-            "Magento\\Store\\": "Test/Stubs/Magento/Store/"
+            "Magento\\Store\\": "Test/Stubs/Magento/Store/",
+            "Psr\\Log\\": "Test/Stubs/Psr/Log/"
         }
     },
     "require-dev": {
