@@ -7,7 +7,6 @@ use Magento\Framework\App\FrontControllerInterface;
 use Magento\Framework\App\Request\Http;
 use Magento\Framework\App\Request\HttpFactory;
 use Magento\Framework\App\Response\Http as HttpResponse;
-use Magento\Framework\App\Response\HttpFactory as HttpResponseFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -19,13 +18,11 @@ class GraphQlInternalPipelineStressTest extends TestCase
 {
     private FrontControllerInterface&MockObject $frontController;
     private HttpFactory&MockObject $requestFactory;
-    private HttpResponseFactory&MockObject $responseFactory;
 
     protected function setUp(): void
     {
         $this->frontController = $this->createMock(FrontControllerInterface::class);
         $this->requestFactory = $this->createMock(HttpFactory::class);
-        $this->responseFactory = $this->createMock(HttpResponseFactory::class);
     }
 
     public function testItDispatchesMultipleInternalGraphQlRequests(): void
@@ -53,17 +50,13 @@ class GraphQlInternalPipelineStressTest extends TestCase
             ->method('create')
             ->willReturnOnConsecutiveCalls($requestOne, $requestTwo);
 
-        $this->responseFactory
-            ->expects(self::exactly(2))
-            ->method('create')
-            ->willReturnOnConsecutiveCalls($responseOne, $responseTwo);
-
         $this->frontController
             ->expects(self::exactly(2))
             ->method('dispatch')
-            ->with(self::isInstanceOf(Http::class));
+            ->with(self::isInstanceOf(Http::class))
+            ->willReturnOnConsecutiveCalls($responseOne, $responseTwo);
 
-        $action = new GraphQlInternalPipelineStress($this->frontController, $this->requestFactory, $this->responseFactory);
+        $action = new GraphQlInternalPipelineStress($this->frontController, $this->requestFactory);
         $output = new BufferedOutput();
 
         $result = $action->execute($output);
@@ -91,33 +84,26 @@ class GraphQlInternalPipelineStressTest extends TestCase
         $responseOne->method('getHttpResponseCode')->willReturn(200);
         $responseOne->method('getBody')->willReturn('{"data":{}}');
 
-        $responseTwo = $this->createStub(HttpResponse::class);
-        $responseTwo->method('getHttpResponseCode')->willReturn(500);
-        $responseTwo->method('getBody')->willReturn('{"errors":[{"message":"boom"}]}');
-
         $this->requestFactory
             ->expects(self::exactly(2))
             ->method('create')
             ->willReturnOnConsecutiveCalls($requestOne, $requestTwo);
 
-        $this->responseFactory
-            ->expects(self::exactly(2))
-            ->method('create')
-            ->willReturnOnConsecutiveCalls($responseOne, $responseTwo);
-
         $calls = 0;
         $this->frontController
             ->expects(self::exactly(2))
             ->method('dispatch')
-            ->willReturnCallback(static function (Http $request) use (&$calls): void {
+            ->willReturnCallback(static function (Http $request) use (&$calls, $responseOne): HttpResponse {
                 $calls++;
 
                 if ($calls === 2) {
                     throw new RuntimeException('dispatch failed');
                 }
+
+                return $responseOne;
             });
 
-        $action = new GraphQlInternalPipelineStress($this->frontController, $this->requestFactory, $this->responseFactory);
+        $action = new GraphQlInternalPipelineStress($this->frontController, $this->requestFactory);
         $output = new BufferedOutput();
 
         $result = $action->execute($output);

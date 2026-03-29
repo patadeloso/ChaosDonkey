@@ -5,7 +5,6 @@ namespace ShaunMcManus\ChaosDonkey\Action;
 
 use Magento\Framework\App\FrontControllerInterface;
 use Magento\Framework\App\Request\HttpFactory;
-use Magento\Framework\App\Response\HttpFactory as HttpResponseFactory;
 use ShaunMcManus\ChaosDonkey\Api\ChaosActionInterface;
 use ShaunMcManus\ChaosDonkey\Model\ChaosActionResult;
 use Throwable;
@@ -21,7 +20,6 @@ class GraphQlInternalPipelineStress implements ChaosActionInterface
     public function __construct(
         private FrontControllerInterface $frontController,
         private HttpFactory $requestFactory,
-        private HttpResponseFactory $responseFactory,
         ?array $payloads = null
     ) {
         $this->payloads = $payloads ?? [
@@ -44,14 +42,13 @@ class GraphQlInternalPipelineStress implements ChaosActionInterface
 
         foreach ($this->payloads as $index => $query) {
             $request = $this->requestFactory->create();
-            $response = $this->responseFactory->create();
 
             $request->setPathInfo('/graphql');
             $request->setMethod('POST');
             $request->setContent((string) json_encode(['query' => $query]));
 
             try {
-                $this->frontController->dispatch($request);
+                $response = $this->frontController->dispatch($request);
 
                 $statusCode = $response->getHttpResponseCode();
                 $body = $response->getBody();
