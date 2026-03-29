@@ -13,10 +13,14 @@ Rolls a D20 and executes a mapped outcome.
   - `admin/chaos_donkey/last_outcome` (outcome key)
 
 Current outcome mapping:
-- `1`: critical failure message
-- `2`: reindex all indexers
-- `20`: critical success message
-- default: napping message
+- `1`: critical failure message (`critical_failure`)
+- `2`: reindex all indexers (`reindex_all`)
+- `3`: flush cache types (`cache_flush`)
+- `4`: run internal GraphQL pipeline stress (`graphql_pipeline_stress`)
+- `20`: critical success message (`critical_success`)
+- default: napping message (`napping`)
+
+For action outcomes, `chaosdonkey:kick` resolves an action code and executes a DI-wired action service from the action pool.
 
 ### `bin/magento chaosdonkey:status`
 Prints real module status values from config/state:
@@ -31,6 +35,21 @@ On roll `2`, `ReindexAll` iterates all Magento indexers and:
 - prints per-indexer progress
 - runs `reindexAll()` on each indexer
 - catches per-indexer exceptions and continues reindexing the rest
+
+## Cache Flush Behavior
+
+On roll `3`, `CacheFlush`:
+- enumerates available cache types
+- flushes each type individually
+- continues on per-type failures and reports a summary
+
+## Internal GraphQL Pipeline Stress
+
+On roll `4`, `GraphQlInternalPipelineStress`:
+- creates synthetic in-process requests targeting `/graphql`
+- dispatches those requests through Magento's internal HTTP pipeline (no external web HTTP calls)
+- uses default built-in GraphQL payloads in Phase 1
+- aggregates per-payload success/failure details
 
 ## Local Unit Tests
 
