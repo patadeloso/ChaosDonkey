@@ -48,3 +48,4 @@
 /.phpunit.cache/
 /.worktrees/
 /AGENTS.md
+/tmp/
