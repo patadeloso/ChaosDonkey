@@ -70,6 +70,110 @@ class ConfigTest extends TestCase
         self::assertTrue($config->isGraphQlPipelineStressEnabled());
     }
 
+    public function testItReadsCronEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_CRON_ENABLED, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isCronEnabled());
+    }
+
+    public function testItReadsTrimmedCronExpressionFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_EXPRESSION, 'default', null)
+            ->willReturn('  */30 * * * *  ');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame('*/30 * * * *', $config->getCronExpression());
+    }
+
+    public function testItTreatsEmptyCronExpressionAsUnset(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_EXPRESSION, 'default', null)
+            ->willReturn('   ');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertNull($config->getCronExpression());
+    }
+
+    public function testItReadsTrimmedCronAllowedHoursFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_ALLOWED_HOURS, 'default', null)
+            ->willReturn(' 1, 2, 3 ');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame('1, 2, 3', $config->getCronAllowedHoursRaw());
+    }
+
+    public function testItTreatsEmptyCronAllowedHoursAsUnset(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_ALLOWED_HOURS, 'default', null)
+            ->willReturn('   ');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertNull($config->getCronAllowedHoursRaw());
+    }
+
+    public function testItReturnsEmptyAllowedHoursWhenUnset(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_ALLOWED_HOURS, 'default', null)
+            ->willReturn(null);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame([], $config->getCronAllowedHours());
+    }
+
+    public function testItParsesAllowedHoursIntoUniqueSortedIntegers(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_ALLOWED_HOURS, 'default', null)
+            ->willReturn(' 5, 2, 5, 23, 0, 18 ');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame([0, 2, 5, 18, 23], $config->getCronAllowedHours());
+    }
+
+    public function testItIgnoresInvalidAllowedHourTokens(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_CRON_ALLOWED_HOURS, 'default', null)
+            ->willReturn('foo, -1, 24, 7, 03, 12bar, 8, , 11');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame([3, 7, 8, 11], $config->getCronAllowedHours());
+    }
+
     public function testItReadsLastRunFromExpectedPath(): void
     {
         $this->scopeConfig
