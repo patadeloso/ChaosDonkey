@@ -7,6 +7,13 @@ Magento 2 module to cause operational chaos on command.
 Rolls a D20 and executes a mapped outcome.
 
 - If `admin/chaos_donkey/enabled` is disabled, exits early with a clear message.
+- Before executing an action outcome, checks action toggles:
+  - `admin/chaos_donkey/enable_reindex_all`
+  - `admin/chaos_donkey/enable_cache_flush`
+  - `admin/chaos_donkey/enable_graphql_pipeline_stress`
+- If a disabled action outcome is rolled, rerolls up to 20 times.
+- If all action toggles are disabled, prints `All configured chaos actions are disabled. Rolling non-action outcomes only.`
+- If reroll attempts are exhausted, falls back to `napping`.
 - If enabled, saves:
   - `admin/chaos_donkey/last_run` (ISO-8601 timestamp)
   - `admin/chaos_donkey/last_kick` (rolled value)
@@ -58,4 +65,20 @@ This repository contains standalone unit tests for module logic and command orch
 ```bash
 composer install
 vendor/bin/phpunit
+```
+
+## Simplified PR Workflow
+
+Use the helper scripts in `scripts/` for a shorter GitHub flow.
+
+Start work on a new branch and open a PR draft/fill flow:
+
+```bash
+scripts/pr-start.sh feat/my-change
+```
+
+Merge PR with squash, delete branches, and sync local `main`:
+
+```bash
+scripts/pr-finish.sh
 ```

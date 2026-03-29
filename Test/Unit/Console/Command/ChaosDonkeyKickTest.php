@@ -85,6 +85,7 @@ class ChaosDonkeyKickTest extends TestCase
         $action->method('execute')->willReturn(new ChaosActionResult('cache_flush', 'ok'));
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->method('isActionEnabled')->willReturn(true);
         $this->kickRoller->expects(self::once())->method('rollD20')->willReturn(3);
         $this->resolver->expects(self::once())->method('resolve')->with(3)->willReturn('cache_flush');
         $this->actionPool->expects(self::once())->method('get')->with('cache_flush')->willReturn($action);
@@ -107,6 +108,7 @@ class ChaosDonkeyKickTest extends TestCase
         $action->method('execute')->willReturn(new ChaosActionResult('graphql_pipeline_stress', 'ok'));
 
         $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->method('isActionEnabled')->willReturn(true);
         $this->kickRoller->expects(self::once())->method('rollD20')->willReturn(4);
         $this->resolver->expects(self::once())->method('resolve')->with(4)->willReturn('graphql_pipeline_stress');
         $this->actionPool->expects(self::once())->method('get')->with('graphql_pipeline_stress')->willReturn($action);
@@ -160,6 +162,119 @@ class ChaosDonkeyKickTest extends TestCase
         $tester->execute([]);
 
         self::assertStringContainsString('You rolled a 6', $tester->getDisplay());
+        self::assertStringContainsString('The donkeys are napping', $tester->getDisplay());
+    }
+
+    public function testDisabledActionOutcomeTriggersRerollAndPersistsFinalOutcome(): void
+    {
+        $action = $this->createStub(ChaosActionInterface::class);
+        $action->method('execute')->willReturn(new ChaosActionResult('cache_flush', 'ok'));
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::exactly(3))
+            ->method('isActionEnabled')
+            ->willReturnMap([
+                ['reindex_all', false],
+                ['cache_flush', true],
+                ['graphql_pipeline_stress', true],
+            ]);
+        $this->kickRoller->expects(self::exactly(2))
+            ->method('rollD20')
+            ->willReturnOnConsecutiveCalls(2, 3);
+        $resolvedRolls = [];
+        $this->resolver->expects(self::exactly(2))
+            ->method('resolve')
+            ->willReturnCallback(static function (int $kick) use (&$resolvedRolls): string {
+                $resolvedRolls[] = $kick;
+
+                return match ($kick) {
+                    2 => 'reindex_all',
+                    3 => 'cache_flush',
+                };
+            });
+        $this->actionPool->expects(self::once())->method('get')->with('cache_flush')->willReturn($action);
+
+        $this->stateWriter->expects(self::once())->method('saveLastRun');
+        $this->stateWriter->expects(self::once())->method('saveLastKick')->with(3);
+        $this->stateWriter->expects(self::once())->method('saveLastOutcome')->with('cache_flush');
+
+        $command = new ChaosDonkeyKick($this->config, $this->actionPool, $this->resolver, $this->stateWriter, $this->kickRoller);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        self::assertSame([2, 3], $resolvedRolls);
+        self::assertStringContainsString('You rolled a 3', $tester->getDisplay());
+        self::assertStringNotContainsString('You rolled a 2', $tester->getDisplay());
+    }
+
+    public function testAllActionsDisabledWarnsOnceAndExecutesOnlyNonActionOutcome(): void
+    {
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::exactly(3))
+            ->method('isActionEnabled')
+            ->willReturn(false);
+        $this->kickRoller->expects(self::exactly(4))
+            ->method('rollD20')
+            ->willReturnOnConsecutiveCalls(2, 3, 4, 1);
+        $resolvedRolls = [];
+        $this->resolver->expects(self::exactly(4))
+            ->method('resolve')
+            ->willReturnCallback(static function (int $kick) use (&$resolvedRolls): string {
+                $resolvedRolls[] = $kick;
+
+                return match ($kick) {
+                    1 => 'critical_failure',
+                    2 => 'reindex_all',
+                    3 => 'cache_flush',
+                    4 => 'graphql_pipeline_stress',
+                };
+            });
+        $this->actionPool->expects(self::once())->method('get')->with('critical_failure')->willReturn(null);
+
+        $this->stateWriter->expects(self::once())->method('saveLastRun');
+        $this->stateWriter->expects(self::once())->method('saveLastKick')->with(1);
+        $this->stateWriter->expects(self::once())->method('saveLastOutcome')->with('critical_failure');
+
+        $command = new ChaosDonkeyKick($this->config, $this->actionPool, $this->resolver, $this->stateWriter, $this->kickRoller);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        self::assertSame([2, 3, 4, 1], $resolvedRolls);
+        self::assertSame(
+            1,
+            substr_count($tester->getDisplay(), 'All configured chaos actions are disabled. Rolling non-action outcomes only.')
+        );
+        self::assertStringContainsString('You rolled a 1', $tester->getDisplay());
+        self::assertStringContainsString('Critical Failure!', $tester->getDisplay());
+    }
+
+    public function testMaxAttemptGuardFallsBackToNapping(): void
+    {
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::exactly(3))
+            ->method('isActionEnabled')
+            ->willReturnMap([
+                ['reindex_all', false],
+                ['cache_flush', true],
+                ['graphql_pipeline_stress', true],
+            ]);
+        $this->kickRoller->expects(self::exactly(20))->method('rollD20')->willReturn(2);
+        $this->resolver->expects(self::exactly(20))->method('resolve')->with(2)->willReturn('reindex_all');
+        $this->actionPool->expects(self::once())->method('get')->with('napping')->willReturn(null);
+
+        $this->stateWriter->expects(self::once())->method('saveLastRun');
+        $this->stateWriter->expects(self::once())->method('saveLastKick')->with(2);
+        $this->stateWriter->expects(self::once())->method('saveLastOutcome')->with('napping');
+
+        $command = new ChaosDonkeyKick($this->config, $this->actionPool, $this->resolver, $this->stateWriter, $this->kickRoller);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        self::assertStringContainsString('Max reroll attempts reached. Falling back to napping.', $tester->getDisplay());
+        self::assertStringContainsString('You rolled a 2', $tester->getDisplay());
         self::assertStringContainsString('The donkeys are napping', $tester->getDisplay());
     }
 }
