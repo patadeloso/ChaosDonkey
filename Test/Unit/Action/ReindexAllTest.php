@@ -8,6 +8,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use ShaunMcManus\ChaosDonkey\Action\ReindexAll;
+use ShaunMcManus\ChaosDonkey\Model\ChaosActionResult;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 class ReindexAllTest extends TestCase
@@ -32,10 +33,15 @@ class ReindexAllTest extends TestCase
 
         $action = new ReindexAll($this->collectionFactory);
 
-        $action->execute($output);
+        $result = $action->execute($output);
 
         self::assertSame(1, $firstIndexer->reindexCalls);
         self::assertSame(1, $secondIndexer->reindexCalls);
+        self::assertInstanceOf(ChaosActionResult::class, $result);
+        self::assertTrue($result->isSuccess());
+        self::assertSame('reindex_all', $result->getOutcomeCode());
+        self::assertSame('Reindexed all indexers successfully', $result->getSummary());
+        self::assertCount(2, $result->getDetails());
         $printedOutput = $output->fetch();
 
         self::assertStringContainsString('Reindexing all indexers...', $printedOutput);
@@ -58,10 +64,15 @@ class ReindexAllTest extends TestCase
 
         $action = new ReindexAll($this->collectionFactory);
 
-        $action->execute($output);
+        $result = $action->execute($output);
 
         self::assertSame(1, $failingIndexer->reindexCalls);
         self::assertSame(1, $healthyIndexer->reindexCalls);
+        self::assertInstanceOf(ChaosActionResult::class, $result);
+        self::assertFalse($result->isSuccess());
+        self::assertSame('reindex_all', $result->getOutcomeCode());
+        self::assertSame('Reindex completed with failures', $result->getSummary());
+        self::assertCount(2, $result->getDetails());
         $printedOutput = $output->fetch();
 
         self::assertStringContainsString('Failed: failing_indexer (boom)', $printedOutput);
