@@ -3,9 +3,10 @@ declare(strict_types = 1);
 
 namespace ShaunMcManus\ChaosDonkey\Console\Command;
 
-use ShaunMcManus\ChaosDonkey\Action\ReindexAll;
+use ShaunMcManus\ChaosDonkey\Model\ActionPool;
 use ShaunMcManus\ChaosDonkey\Model\Config;
 use ShaunMcManus\ChaosDonkey\Model\KickRoller;
+use ShaunMcManus\ChaosDonkey\Model\RollOutcomeResolver;
 use ShaunMcManus\ChaosDonkey\Model\StateWriter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -14,19 +15,22 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ChaosDonkeyKick extends Command
 {
     private Config $config;
-    private ReindexAll $reindexAll;
+    private ActionPool $actionPool;
+    private RollOutcomeResolver $resolver;
     private StateWriter $stateWriter;
     private KickRoller $kickRoller;
 
     public function __construct(
         Config $config,
-        ReindexAll $reindexAll,
+        ActionPool $actionPool,
+        RollOutcomeResolver $resolver,
         StateWriter $stateWriter,
         KickRoller $kickRoller
     ) {
         parent::__construct();
         $this->config = $config;
-        $this->reindexAll = $reindexAll;
+        $this->actionPool = $actionPool;
+        $this->resolver = $resolver;
         $this->stateWriter = $stateWriter;
         $this->kickRoller = $kickRoller;
     }
@@ -54,21 +58,21 @@ class ChaosDonkeyKick extends Command
         }
 
         $kick = $this->kickRoller->rollD20();
+        $outcome = $this->resolver->resolve($kick);
         $output->writeln('ChaosDonkeyKick kicks your Magento. You rolled a ' . $kick);
 
-        $outcome = match ($kick) {
-            1 => 'critical_failure',
-            2 => 'reindex_all',
-            20 => 'critical_success',
-            default => 'napping',
-        };
-
-        match ($kick) {
-            1 => $output->writeln('Critical Failure! Better check all of your donkeys.'),
-            2 => $this->reindexAll->execute($output),
-            20 => $output->writeln('Critical Success! Yee Haw the donkeys are loose!'),
-            default => $output->writeln('The donkeys are napping'),
-        };
+        $action = $this->actionPool->get($outcome);
+        if ($action !== null) {
+            $result = $action->execute($output);
+            $output->writeln($result->getSummary());
+        } else {
+            match ($outcome) {
+                'critical_failure' => $output->writeln('Critical Failure! Better check all of your donkeys.'),
+                'critical_success' => $output->writeln('Critical Success! Yee Haw the donkeys are loose!'),
+                'napping' => $output->writeln('The donkeys are napping'),
+                default => $output->writeln('Unknown chaos outcome. The donkeys stare suspiciously.'),
+            };
+        }
 
         $this->stateWriter->saveLastRun((new \DateTimeImmutable())->format(DATE_ATOM));
         $this->stateWriter->saveLastKick($kick);
