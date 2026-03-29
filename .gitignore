@@ -47,3 +47,4 @@
 /vendor/
 /.phpunit.cache/
 /.worktrees/
+/AGENTS.md
