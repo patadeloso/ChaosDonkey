@@ -14,6 +14,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ChaosDonkeyKick extends Command
 {
+    private const MAX_REROLL_ATTEMPTS = 20;
+    private const ACTION_CODES = [
+        'reindex_all',
+        'cache_flush',
+        'graphql_pipeline_stress',
+    ];
+
     private Config $config;
     private ActionPool $actionPool;
     private RollOutcomeResolver $resolver;
@@ -57,8 +64,28 @@ class ChaosDonkeyKick extends Command
             return Command::SUCCESS;
         }
 
-        $kick = $this->kickRoller->rollD20();
-        $outcome = $this->resolver->resolve($kick);
+        $enabledActions = $this->getEnabledActions();
+        if (!in_array(true, $enabledActions, true)) {
+            $output->writeln('All configured chaos actions are disabled. Rolling non-action outcomes only.');
+        }
+
+        $kick = 0;
+        $outcome = 'napping';
+
+        for ($attempt = 0; $attempt < self::MAX_REROLL_ATTEMPTS; $attempt++) {
+            $kick = $this->kickRoller->rollD20();
+            $outcome = $this->resolver->resolve($kick);
+
+            if (!$this->isDisabledActionOutcome($outcome, $enabledActions)) {
+                break;
+            }
+        }
+
+        if ($this->isDisabledActionOutcome($outcome, $enabledActions)) {
+            $outcome = 'napping';
+            $output->writeln('Max reroll attempts reached. Falling back to napping.');
+        }
+
         $output->writeln('ChaosDonkeyKick kicks your Magento. You rolled a ' . $kick);
 
         $action = $this->actionPool->get($outcome);
@@ -79,5 +106,31 @@ class ChaosDonkeyKick extends Command
         $this->stateWriter->saveLastOutcome($outcome);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function getEnabledActions(): array
+    {
+        $enabledActions = [];
+
+        foreach (self::ACTION_CODES as $actionCode) {
+            $enabledActions[$actionCode] = $this->config->isActionEnabled($actionCode);
+        }
+
+        return $enabledActions;
+    }
+
+    /**
+     * @param array<string, bool> $enabledActions
+     */
+    private function isDisabledActionOutcome(string $outcome, array $enabledActions): bool
+    {
+        if (!array_key_exists($outcome, $enabledActions)) {
+            return false;
+        }
+
+        return $enabledActions[$outcome] === false;
     }
 }
