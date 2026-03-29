@@ -46,3 +46,4 @@
 # Local development / test artifacts
 /vendor/
 /.phpunit.cache/
+/.worktrees/
