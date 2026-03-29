@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace ShaunMcManus\ChaosDonkey\Test\Unit\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use ShaunMcManus\ChaosDonkey\Model\Config;
@@ -28,6 +29,45 @@ class ConfigTest extends TestCase
         $config = new Config($this->scopeConfig);
 
         self::assertTrue($config->isEnabled());
+    }
+
+    public function testItReadsReindexAllEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_ENABLE_REINDEX_ALL, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isReindexAllEnabled());
+    }
+
+    public function testItReadsCacheFlushEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_ENABLE_CACHE_FLUSH, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isCacheFlushEnabled());
+    }
+
+    public function testItReadsGraphQlPipelineStressEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_ENABLE_GRAPHQL_PIPELINE_STRESS, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isGraphQlPipelineStressEnabled());
     }
 
     public function testItReadsLastRunFromExpectedPath(): void
@@ -81,5 +121,48 @@ class ConfigTest extends TestCase
         self::assertNull($config->getLastRun());
         self::assertNull($config->getLastKick());
         self::assertNull($config->getLastOutcome());
+    }
+
+    #[DataProvider('actionCodeMappingProvider')]
+    public function testItMapsActionCodesToTheirMatchingToggle(string $actionCode, string $expectedConfigPath): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with($expectedConfigPath, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isActionEnabled($actionCode));
+    }
+
+    public function testItAllowsUnknownActionCodesByDefault(): void
+    {
+        $this->scopeConfig
+            ->expects(self::never())
+            ->method('isSetFlag');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isActionEnabled('napping'));
+    }
+
+    public static function actionCodeMappingProvider(): array
+    {
+        return [
+            'reindex all' => [
+                'reindex_all',
+                Config::CONFIG_PATH_ENABLE_REINDEX_ALL,
+            ],
+            'cache flush' => [
+                'cache_flush',
+                Config::CONFIG_PATH_ENABLE_CACHE_FLUSH,
+            ],
+            'graphql pipeline stress' => [
+                'graphql_pipeline_stress',
+                Config::CONFIG_PATH_ENABLE_GRAPHQL_PIPELINE_STRESS,
+            ],
+        ];
     }
 }
