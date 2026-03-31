@@ -229,14 +229,24 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
                 ];
             }
 
-            $activityCount = $this->fetchCount(
-                $adapter,
-                sprintf(
-                    'SELECT COUNT(*) FROM %s WHERE updated_at >= :lookback_60m',
-                    $queueMessageStatusTable
-                ),
-                ['lookback_60m' => $lookback60m]
-            );
+            try {
+                $activityCount = $this->fetchCount(
+                    $adapter,
+                    sprintf(
+                        'SELECT COUNT(*) FROM %s WHERE updated_at >= :lookback_60m',
+                        $queueMessageStatusTable
+                    ),
+                    ['lookback_60m' => $lookback60m]
+                );
+            } catch (Throwable $exception) {
+                return [
+                    'status' => 'unknown',
+                    'tables_present_status' => 'ok',
+                    'tables_present' => 'true',
+                    'activity_status' => 'unknown',
+                    'activity_last_60m' => 'n/a',
+                ];
+            }
 
             return [
                 'status' => ($activityCount === 0 && $cronStatus === 'warn') ? 'warn' : 'ok',

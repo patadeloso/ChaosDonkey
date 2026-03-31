@@ -382,6 +382,7 @@ class CronQueueHealthSnapshotTest extends TestCase
 
         self::assertStringContainsString('status=unknown', $lines[0]);
         self::assertStringContainsString('queue=unknown', $lines[0]);
+        self::assertStringContainsString('subsystem=queue item=tables_present status=ok value="true"', $result['output']);
         self::assertStringContainsString('subsystem=queue item=activity_last_60m status=unknown value="n/a"', $result['output']);
         self::assertFalse($result['instance']->isSuccess());
     }
