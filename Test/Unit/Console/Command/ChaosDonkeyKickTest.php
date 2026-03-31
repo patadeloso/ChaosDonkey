@@ -61,4 +61,42 @@ class ChaosDonkeyKickTest extends TestCase
         self::assertStringContainsString('Cache flush started', $tester->getDisplay());
         self::assertStringContainsString('Cache flush completed', $tester->getDisplay());
     }
+
+    public function testItPrintsProbeLinesUnchangedFromExecutorOutput(): void
+    {
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+
+        $probeSummary = 'Probe[indexer_status_snapshot] status=warn msg="2 indexers, 1 need reindex, modes=unavailable"';
+        $probeDetail = 'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=product_indexer status=warn value="state=invalid; mode=schedule"';
+
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 5,
+                'outcome' => 'indexer_status_snapshot',
+                'messages' => [
+                    'ChaosDonkeyKick kicks your Magento. You rolled a 5',
+                    $probeSummary,
+                    $probeDetail,
+                    'The donkeys are napping',
+                ],
+            ]);
+
+        $command = new ChaosDonkeyKick($this->config, $this->kickExecutor);
+        $tester = new CommandTester($command);
+
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(0, $exitCode);
+        self::assertSame(
+            [
+                'ChaosDonkeyKick kicks your Magento. You rolled a 5',
+                $probeSummary,
+                $probeDetail,
+                'The donkeys are napping',
+            ],
+            preg_split('/\r?\n/', trim($tester->getDisplay()))
+        );
+    }
 }

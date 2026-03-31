@@ -11,10 +11,13 @@ Rolls a D20 and executes a mapped outcome.
   - `admin/chaos_donkey/enable_reindex_all`
   - `admin/chaos_donkey/enable_cache_flush`
   - `admin/chaos_donkey/enable_graphql_pipeline_stress`
-- If a disabled action outcome is rolled, rerolls up to 20 times.
-- If all action toggles are disabled, prints `All configured chaos actions are disabled. Rolling non-action outcomes only.`
-- If reroll attempts are exhausted, falls back to `napping`.
-- If enabled, saves:
+  - `admin/chaos_donkey/enable_indexer_status_snapshot`
+  - `admin/chaos_donkey/enable_cache_backend_health_snapshot`
+  - `admin/chaos_donkey/enable_cron_queue_health_snapshot`
+  - If a disabled action outcome is rolled, rerolls up to 20 times.
+  - If all action/probe toggles are disabled, prints `All configured chaos actions/probes are disabled. Rolling non-action outcomes only.`
+  - If reroll attempts are exhausted, falls back to `napping`.
+  - If enabled, saves:
   - `admin/chaos_donkey/last_run` (ISO-8601 timestamp)
   - `admin/chaos_donkey/last_kick` (rolled value)
   - `admin/chaos_donkey/last_outcome` (outcome key)
@@ -24,10 +27,21 @@ Current outcome mapping:
 - `2`: reindex all indexers (`reindex_all`)
 - `3`: flush cache types (`cache_flush`)
 - `4`: run internal GraphQL pipeline stress (`graphql_pipeline_stress`)
+- `5`: indexer status snapshot probe (`indexer_status_snapshot`)
+- `6`: cache backend health snapshot probe (`cache_backend_health_snapshot`)
+- `7`: cron/queue health snapshot probe (`cron_queue_health_snapshot`)
 - `20`: critical success message (`critical_success`)
 - default: napping message (`napping`)
 
-For action outcomes, `chaosdonkey:kick` resolves an action code and executes a DI-wired action service from the action pool.
+Rolls `5`, `6`, and `7` are the fixed probe outcomes for the new read-only probes.
+
+For outcomes, `chaosdonkey:kick` resolves an action code and executes a DI-wired action service from the action pool.
+
+Probe actions return their output as canonical lines in the command result payload:
+- `Probe[<outcome>] status=<status> msg="<message>"`
+- `ProbeDetail[<outcome>] subsystem=<name> item=<name> status=<status> value="<value>"`
+
+`chaosdonkey:kick` prints each line from the executor payload as-is, without reformatting.
 
 ## Cron Automation
 
@@ -53,6 +67,11 @@ Cron execution skips when:
 - the current hour is outside the allowed window
 
 When it does run, cron delegates to the same kick execution pipeline as `chaosdonkey:kick`, so rerolls, action toggles, and state persistence behave the same way.
+
+Cron log behavior:
+- Always logs startup, skip reasons, and completion.
+- Logs only probe/probe-detail lines from command output (`Probe[...]`, `ProbeDetail[...]`) and preserves them unchanged.
+- Non-probe chatter from the executor result is intentionally not logged by cron to keep logs focused.
 
 ### `bin/magento chaosdonkey:status`
 Prints real module status values from config/state:
