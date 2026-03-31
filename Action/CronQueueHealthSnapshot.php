@@ -57,7 +57,7 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
                 [
                     new ProbeDetailRow('cron', 'failures_last_60m', 'unknown', 'n/a'),
                     new ProbeDetailRow('cron', 'pending_older_15m', 'unknown', 'n/a'),
-                    new ProbeDetailRow('queue', 'tables_present', 'unknown', 'n/a'),
+                    new ProbeDetailRow('queue', 'tables_present', 'unavailable', 'false'),
                     new ProbeDetailRow('queue', 'activity_last_60m', 'unknown', 'n/a'),
                 ],
                 true
@@ -258,8 +258,8 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
         } catch (Throwable $exception) {
             return [
                 'status' => 'unknown',
-                'tables_present_status' => 'unknown',
-                'tables_present' => 'n/a',
+                'tables_present_status' => 'unavailable',
+                'tables_present' => 'false',
                 'activity_status' => 'unknown',
                 'activity_last_60m' => 'n/a',
             ];

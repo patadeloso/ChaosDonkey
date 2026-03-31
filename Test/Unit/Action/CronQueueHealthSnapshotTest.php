@@ -204,7 +204,7 @@ class CronQueueHealthSnapshotTest extends TestCase
 
         self::assertStringContainsString('status=warn', $lines[0]);
         self::assertStringContainsString('queue=unknown', $lines[0]);
-        self::assertStringContainsString('subsystem=queue item=tables_present status=unknown value="n/a"', $result['output']);
+        self::assertStringContainsString('subsystem=queue item=tables_present status=unavailable value="false"', $result['output']);
         self::assertStringContainsString('subsystem=queue item=activity_last_60m status=unknown value="n/a"', $result['output']);
         self::assertStringContainsString('subsystem=cron item=failures_last_60m status=warn value="3"', $result['output']);
         self::assertStringContainsString('subsystem=cron item=pending_older_15m status=ok value="1"', $result['output']);
@@ -399,7 +399,7 @@ class CronQueueHealthSnapshotTest extends TestCase
         self::assertStringContainsString('status=unknown', $this->splitOutput($result['output'])[0]);
         self::assertStringContainsString('cron=unknown, queue=unknown, failures_last_60m=n/a, pending_older_15m=n/a, activity_last_60m=n/a', $this->splitOutput($result['output'])[0]);
         self::assertStringContainsString('subsystem=cron item=failures_last_60m status=unknown value="n/a"', $result['output']);
-        self::assertStringContainsString('subsystem=queue item=tables_present status=unknown value="n/a"', $result['output']);
+        self::assertStringContainsString('subsystem=queue item=tables_present status=unavailable value="false"', $result['output']);
         self::assertStringContainsString('subsystem=queue item=activity_last_60m status=unknown value="n/a"', $result['output']);
         self::assertFalse($result['instance']->isSuccess());
     }
