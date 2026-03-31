@@ -61,10 +61,27 @@ class IndexerStatusSnapshot implements ChaosActionInterface
         $needsReindex = 0;
         $unavailableModeCount = 0;
         $unavailableStateCount = 0;
+        $scheduledModeCount = 0;
+        $realtimeModeCount = 0;
 
         foreach ($indexers as $indexer) {
-            $indexerId = (string) $indexer->getId();
             $indexerCount++;
+
+            $indexerId = 'indexer';
+
+            try {
+                $indexerId = (string) $indexer->getId();
+            } catch (Throwable $exception) {
+                $unavailableStateCount++;
+                $details[] = new ProbeDetailRow(
+                    'indexer',
+                    'enumeration',
+                    'unknown',
+                    'unavailable'
+                );
+
+                continue;
+            }
 
             $state = 'unavailable';
             $mode = 'unavailable';
@@ -93,6 +110,10 @@ class IndexerStatusSnapshot implements ChaosActionInterface
 
             if ($mode === 'unavailable') {
                 $unavailableModeCount++;
+            } elseif ($mode === 'schedule') {
+                $scheduledModeCount++;
+            } else {
+                $realtimeModeCount++;
             }
 
             if ($state === 'unavailable') {
@@ -123,15 +144,27 @@ class IndexerStatusSnapshot implements ChaosActionInterface
             $overallStatus = 'unknown';
         }
 
+        $summary = sprintf(
+            '%d indexers, %d need reindex, modes=%s',
+            $indexerCount,
+            $needsReindex,
+            'unavailable'
+        );
+
+        if ($unavailableStateCount === 0 && $unavailableModeCount === 0) {
+            $summary = sprintf(
+                '%d indexers, %d need reindex, modes: schedule=%d, realtime=%d',
+                $indexerCount,
+                $needsReindex,
+                $scheduledModeCount,
+                $realtimeModeCount
+            );
+        }
+
         return new ProbeSnapshot(
             $this->getCode(),
             $overallStatus,
-            sprintf(
-                '%d indexers, %d need reindex, modes=%s',
-                $indexerCount,
-                $needsReindex,
-                $unavailableStateCount > 0 || $unavailableModeCount > 0 ? 'unavailable' : 'ok'
-            ),
+            $summary,
             $details
         );
     }

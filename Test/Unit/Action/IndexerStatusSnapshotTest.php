@@ -54,9 +54,9 @@ class IndexerStatusSnapshotTest extends TestCase
         $lines = $this->splitOutput($output);
 
         self::assertCount(3, $lines);
-        self::assertSame('Probe[indexer_status_snapshot] status=ok msg="2 indexers, 0 need reindex, modes=ok"', $lines[0]);
-        self::assertStringContainsString('subsystem=indexer item=catalogsearch_fulltext status=ok msg="state=valid;mode=realtime"', $output);
-        self::assertStringContainsString('subsystem=indexer item=catalog_product_price status=ok msg="state=valid;mode=schedule"', $output);
+        self::assertSame('Probe[indexer_status_snapshot] status=ok msg="2 indexers, 0 need reindex, modes: schedule=1, realtime=1"', $lines[0]);
+        self::assertStringContainsString('subsystem=indexer item=catalogsearch_fulltext status=ok value="state=valid;mode=realtime"', $output);
+        self::assertStringContainsString('subsystem=indexer item=catalog_product_price status=ok value="state=valid;mode=schedule"', $output);
     }
 
     public function testItReportsWarnSummaryAndRowsWhenIndexersNeedReindex(): void
@@ -83,8 +83,8 @@ class IndexerStatusSnapshotTest extends TestCase
 
         $lines = $this->splitOutput($output);
 
-        self::assertSame('Probe[indexer_status_snapshot] status=warn msg="2 indexers, 1 need reindex, modes=ok"', $lines[0]);
-        self::assertStringContainsString('subsystem=indexer item=catalog_product_price status=warn msg="state=invalid;mode=realtime"', $output);
+        self::assertSame('Probe[indexer_status_snapshot] status=warn msg="2 indexers, 1 need reindex, modes: schedule=0, realtime=2"', $lines[0]);
+        self::assertStringContainsString('subsystem=indexer item=catalog_product_price status=warn value="state=invalid;mode=realtime"', $output);
     }
 
     public function testItMarksUnknownWhenModeIsUnavailableEvenIfStateIsHealthy(): void
@@ -113,7 +113,7 @@ class IndexerStatusSnapshotTest extends TestCase
             $lines[0]
         );
         self::assertStringContainsString(
-            'subsystem=indexer item=catalogsearch_fulltext status=unknown msg="state=valid;mode=unavailable"',
+            'subsystem=indexer item=catalogsearch_fulltext status=unknown value="state=valid;mode=unavailable"',
             $result['output']
         );
         self::assertFalse($result['instance']->isSuccess());
@@ -143,7 +143,31 @@ class IndexerStatusSnapshotTest extends TestCase
             $this->splitOutput($result['output'])[0]
         );
         self::assertStringContainsString(
-            'subsystem=indexer item=catalogsearch_fulltext status=unknown msg="state=unavailable;mode=realtime"',
+            'subsystem=indexer item=catalogsearch_fulltext status=unknown value="state=unavailable;mode=realtime"',
+            $result['output']
+        );
+        self::assertFalse($result['instance']->isSuccess());
+    }
+
+    public function testItMarksUnknownWhenIndexerIdCannotBeRead(): void
+    {
+        $indexers = [
+            new FakeIndexer('catalog_product_price', 'valid', false, null, null, new RuntimeException('id failed')),
+        ];
+
+        $this->collectionFactory
+            ->expects(self::once())
+            ->method('create')
+            ->willReturn($indexers);
+
+        $result = $this->runProbe($indexers);
+
+        self::assertSame(
+            'Probe[indexer_status_snapshot] status=unknown msg="1 indexers, 0 need reindex, modes=unavailable"',
+            $this->splitOutput($result['output'])[0]
+        );
+        self::assertStringContainsString(
+            'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=enumeration status=unknown value="unavailable"',
             $result['output']
         );
         self::assertFalse($result['instance']->isSuccess());
@@ -174,7 +198,7 @@ class IndexerStatusSnapshotTest extends TestCase
             $result['output']
         );
         self::assertStringContainsString(
-            'subsystem=indexer item=catalog_product_price status=warn msg="state=invalid;mode=unavailable"',
+            'subsystem=indexer item=catalog_product_price status=warn value="state=invalid;mode=unavailable"',
             $result['output']
         );
     }
@@ -194,7 +218,7 @@ class IndexerStatusSnapshotTest extends TestCase
             $result['output']
         );
         self::assertStringContainsString(
-            'Probe[indexer_status_snapshot] subsystem=indexer item=enumeration status=unknown msg="unavailable"',
+            'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=enumeration status=unknown value="unavailable"',
             $result['output']
         );
         self::assertCount(2, $this->splitOutput($result['output']));
@@ -233,7 +257,7 @@ class IndexerStatusSnapshotTest extends TestCase
 
         $lines = $this->splitOutput($result['output']);
         self::assertLessThanOrEqual(6, count($lines));
-        self::assertSame('Probe[indexer_status_snapshot] status=ok msg="7 indexers, 0 need reindex, modes=ok"', $lines[0]);
+        self::assertSame('Probe[indexer_status_snapshot] status=ok msg="7 indexers, 0 need reindex, modes: schedule=3, realtime=4"', $lines[0]);
     }
 
     public function testEachDetailContainsStateAndModeTuple(): void
@@ -262,11 +286,11 @@ class IndexerStatusSnapshotTest extends TestCase
         $result = $this->runProbe($indexers);
 
         self::assertMatchesRegularExpression(
-            '/subsystem=indexer item=catalog_product_price status=ok msg="state=valid;mode=(realtime|schedule)"/',
+            '/subsystem=indexer item=catalog_product_price status=ok value="state=valid;mode=(realtime|schedule)"/',
             $result['output']
         );
         self::assertMatchesRegularExpression(
-            '/subsystem=indexer item=catalogsearch_fulltext status=ok msg="state=valid;mode=(realtime|schedule)"/',
+            '/subsystem=indexer item=catalogsearch_fulltext status=ok value="state=valid;mode=(realtime|schedule)"/',
             $result['output']
         );
     }
@@ -306,11 +330,16 @@ final class FakeIndexer
         private bool $scheduled,
         private ?Throwable $statusFailure = null,
         private ?Throwable $modeFailure = null,
+        private ?Throwable $idFailure = null,
     ) {
     }
 
     public function getId(): string
     {
+        if ($this->idFailure !== null) {
+            throw $this->idFailure;
+        }
+
         return $this->id;
     }
 

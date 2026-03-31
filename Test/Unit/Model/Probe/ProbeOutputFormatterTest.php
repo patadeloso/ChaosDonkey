@@ -67,11 +67,11 @@ class ProbeOutputFormatterTest extends TestCase
         );
 
         self::assertSame(
-            "Probe[system_health] subsystem=cache item=status status=warn msg=\"flush needed\"\n"
-            . "Probe[system_health] subsystem=storage item=iops status=warn msg=\"slow reads\"\n"
-            . "Probe[system_health] subsystem=index item=status status=unavailable msg=\"indexer missing\"\n"
-            . "Probe[system_health] subsystem=cache item=pool status=unknown msg=\"warmup needed\"\n"
-            . "Probe[system_health] subsystem=search item=status status=ok msg=\"ok status\"",
+            "ProbeDetail[system_health] subsystem=cache item=status status=warn value=\"flush needed\"\n"
+            . "ProbeDetail[system_health] subsystem=storage item=iops status=warn value=\"slow reads\"\n"
+            . "ProbeDetail[system_health] subsystem=index item=status status=unavailable value=\"indexer missing\"\n"
+            . "ProbeDetail[system_health] subsystem=cache item=pool status=unknown value=\"warmup needed\"\n"
+            . "ProbeDetail[system_health] subsystem=search item=status status=ok value=\"ok status\"",
             $this->formatter->formatTopDetails($snapshot)
         );
     }
@@ -81,7 +81,7 @@ class ProbeOutputFormatterTest extends TestCase
         $detail = new ProbeDetailRow('filesystem', 'readable', 'ok', 'All mounts readable');
 
         self::assertSame(
-            'Probe[storage_readiness] subsystem=filesystem item=readable status=ok msg="All mounts readable"',
+            'ProbeDetail[storage_readiness] subsystem=filesystem item=readable status=ok value="All mounts readable"',
             $this->formatter->formatDetail('storage_readiness', $detail)
         );
     }
@@ -90,7 +90,7 @@ class ProbeOutputFormatterTest extends TestCase
     {
         $detail = new ProbeDetailRow('filesystem', 'readable', 'ok', 'Check "permissions"' . "\n" . 'for /var');
 
-        $expected = 'Probe[storage_readiness] subsystem=filesystem item=readable status=ok msg=' . json_encode(
+        $expected = 'ProbeDetail[storage_readiness] subsystem=filesystem item=readable status=ok value=' . json_encode(
             'Check "permissions"' . "\n" . 'for /var',
             JSON_UNESCAPED_UNICODE
         );
@@ -117,8 +117,8 @@ class ProbeOutputFormatterTest extends TestCase
 
         self::assertSame(
             "Probe[cache] status=warn msg=\"Some cache components need attention\"\n"
-            . "Probe[cache] subsystem=cache item=frontend status=warn msg=\"flush queue full\"\n"
-            . "Probe[cache] subsystem=database item=replica status=ok msg=\"lagging but within range\"",
+            . "ProbeDetail[cache] subsystem=cache item=frontend status=warn value=\"flush queue full\"\n"
+            . "ProbeDetail[cache] subsystem=database item=replica status=ok value=\"lagging but within range\"",
             $this->formatter->formatLines($snapshot)
         );
     }
@@ -141,11 +141,11 @@ class ProbeOutputFormatterTest extends TestCase
         );
 
         self::assertSame(
-            "Probe[cache] subsystem=search item=indexer status=ok msg=\"first detail\"\n"
-            . "Probe[cache] subsystem=cache item=backend status=warn msg=\"second detail\"\n"
-            . "Probe[cache] subsystem=database item=connection status=unknown msg=\"third detail\"\n"
-            . "Probe[cache] subsystem=queue item=worker status=unavailable msg=\"fourth detail\"\n"
-            . "Probe[cache] subsystem=search item=query status=warn msg=\"fifth detail\"",
+            "ProbeDetail[cache] subsystem=search item=indexer status=ok value=\"first detail\"\n"
+            . "ProbeDetail[cache] subsystem=cache item=backend status=warn value=\"second detail\"\n"
+            . "ProbeDetail[cache] subsystem=database item=connection status=unknown value=\"third detail\"\n"
+            . "ProbeDetail[cache] subsystem=queue item=worker status=unavailable value=\"fourth detail\"\n"
+            . "ProbeDetail[cache] subsystem=search item=query status=warn value=\"fifth detail\"",
             $this->formatter->formatTopDetails($snapshot)
         );
     }

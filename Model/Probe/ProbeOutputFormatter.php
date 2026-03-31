@@ -48,7 +48,7 @@ class ProbeOutputFormatter
     public function formatDetail(string $probeCode, ProbeDetailRow $detail): string
     {
         return sprintf(
-            'Probe[%s] subsystem=%s item=%s status=%s msg="%s"',
+            'ProbeDetail[%s] subsystem=%s item=%s status=%s value="%s"',
             $probeCode,
             $detail->getSubsystem(),
             $detail->getItem(),
