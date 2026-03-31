@@ -133,10 +133,10 @@ class IndexerStatusSnapshot implements ChaosActionInterface
         }
 
         $overallStatus = 'ok';
-        if ($unavailableStateCount > 0) {
-            $overallStatus = 'unknown';
-        } elseif ($needsReindex > 0) {
+        if ($needsReindex > 0) {
             $overallStatus = 'warn';
+        } elseif ($unavailableStateCount > 0) {
+            $overallStatus = 'unknown';
         } elseif ($unavailableModeCount > 0) {
             $overallStatus = 'unknown';
         }

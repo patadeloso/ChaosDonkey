@@ -27,8 +27,8 @@ class IndexerStatusSnapshotTest extends TestCase
     public function testItWritesAllOkSummaryAndDetailsForHealthyIndexers(): void
     {
         $indexerMap = [
-            'catalogsearch_fulltext' => new FakeIndexer('catalogsearch_fulltext', 'valid', false),
-            'catalog_product_price' => new FakeIndexer('catalog_product_price', 'valid', true),
+            'catalogsearch_fulltext' => new IndexerStatusSnapshotFakeIndexer('catalogsearch_fulltext', 'valid', false),
+            'catalog_product_price' => new IndexerStatusSnapshotFakeIndexer('catalog_product_price', 'valid', true),
         ];
         $indexers = array_values($indexerMap);
 
@@ -40,7 +40,7 @@ class IndexerStatusSnapshotTest extends TestCase
         $this->indexerRegistry
             ->expects(self::exactly(2))
             ->method('get')
-            ->willReturnCallback(static function (string $indexerId) use ($indexerMap): FakeIndexer {
+            ->willReturnCallback(static function (string $indexerId) use ($indexerMap): IndexerStatusSnapshotFakeIndexer {
                 return $indexerMap[$indexerId];
             });
 
@@ -62,8 +62,8 @@ class IndexerStatusSnapshotTest extends TestCase
     public function testItReportsWarnSummaryAndRowsWhenIndexersNeedReindex(): void
     {
         $indexerMap = [
-            'catalog_product_price' => new FakeIndexer('catalog_product_price', 'invalid', false),
-            'catalogsearch_fulltext' => new FakeIndexer('catalogsearch_fulltext', 'valid', false),
+            'catalog_product_price' => new IndexerStatusSnapshotFakeIndexer('catalog_product_price', 'invalid', false),
+            'catalogsearch_fulltext' => new IndexerStatusSnapshotFakeIndexer('catalogsearch_fulltext', 'valid', false),
         ];
         $indexers = array_values($indexerMap);
 
@@ -75,7 +75,7 @@ class IndexerStatusSnapshotTest extends TestCase
         $this->indexerRegistry
             ->expects(self::exactly(2))
             ->method('get')
-            ->willReturnCallback(static function (string $indexerId) use ($indexerMap): FakeIndexer {
+            ->willReturnCallback(static function (string $indexerId) use ($indexerMap): IndexerStatusSnapshotFakeIndexer {
                 return $indexerMap[$indexerId];
             });
 
@@ -87,10 +87,38 @@ class IndexerStatusSnapshotTest extends TestCase
         self::assertStringContainsString('subsystem=indexer item=catalog_product_price status=warn value="state=invalid;mode=realtime"', $output);
     }
 
+    public function testItKeepsWarnWhenInvalidAndUnknownRowsAreMixed(): void
+    {
+        $indexers = [
+            new IndexerStatusSnapshotFakeIndexer('catalog_product_price', 'invalid', false),
+            new IndexerStatusSnapshotFakeIndexer('catalogsearch_fulltext', 'valid', false, null, null, new RuntimeException('id failed')),
+        ];
+
+        $this->collectionFactory
+            ->expects(self::once())
+            ->method('create')
+            ->willReturn($indexers);
+
+        $this->indexerRegistry
+            ->expects(self::once())
+            ->method('get')
+            ->with('catalog_product_price')
+            ->willReturn($indexers[0]);
+
+        $result = $this->runProbe($indexers);
+
+        self::assertSame(
+            'Probe[indexer_status_snapshot] status=warn msg="2 indexers, 1 need reindex, modes=unavailable"',
+            $this->splitOutput($result['output'])[0]
+        );
+        self::assertTrue($result['instance']->isSuccess());
+        self::assertStringContainsString('subsystem=indexer item=enumeration status=unknown value="unavailable"', $result['output']);
+    }
+
     public function testItMarksUnknownWhenModeIsUnavailableEvenIfStateIsHealthy(): void
     {
         $indexers = [
-            new FakeIndexer('catalogsearch_fulltext', 'valid', false, null, new RuntimeException('mode failed')),
+            new IndexerStatusSnapshotFakeIndexer('catalogsearch_fulltext', 'valid', false, null, new RuntimeException('mode failed')),
         ];
 
         $this->collectionFactory
@@ -122,7 +150,7 @@ class IndexerStatusSnapshotTest extends TestCase
     public function testItMarksUnknownWhenStateCannotBeRead(): void
     {
         $indexers = [
-            new FakeIndexer('catalogsearch_fulltext', 'valid', false, new RuntimeException('state failed')),
+            new IndexerStatusSnapshotFakeIndexer('catalogsearch_fulltext', 'valid', false, new RuntimeException('state failed')),
         ];
 
         $this->collectionFactory
@@ -152,13 +180,17 @@ class IndexerStatusSnapshotTest extends TestCase
     public function testItMarksUnknownWhenIndexerIdCannotBeRead(): void
     {
         $indexers = [
-            new FakeIndexer('catalog_product_price', 'valid', false, null, null, new RuntimeException('id failed')),
+            new IndexerStatusSnapshotFakeIndexer('catalog_product_price', 'valid', false, null, null, new RuntimeException('id failed')),
         ];
 
         $this->collectionFactory
             ->expects(self::once())
             ->method('create')
             ->willReturn($indexers);
+
+        $this->indexerRegistry
+            ->expects(self::never())
+            ->method('get');
 
         $result = $this->runProbe($indexers);
 
@@ -176,7 +208,7 @@ class IndexerStatusSnapshotTest extends TestCase
     public function testItKeepsWarnStateWhenReindexNeededAndModeUnavailable(): void
     {
         $indexers = [
-            new FakeIndexer('catalog_product_price', 'invalid', true, null, new RuntimeException('mode failed')),
+            new IndexerStatusSnapshotFakeIndexer('catalog_product_price', 'invalid', true, null, new RuntimeException('mode failed')),
         ];
 
         $this->collectionFactory
@@ -210,6 +242,10 @@ class IndexerStatusSnapshotTest extends TestCase
             ->method('create')
             ->willThrowException(new RuntimeException('indexer listing failed'));
 
+        $this->indexerRegistry
+            ->expects(self::never())
+            ->method('get');
+
         $result = $this->runProbe([]);
 
         self::assertFalse($result['instance']->isSuccess());
@@ -228,7 +264,7 @@ class IndexerStatusSnapshotTest extends TestCase
     {
         $indexers = (function (): iterable {
             throw new RuntimeException('indexer enumeration failed');
-            yield new FakeIndexer('should_not_be_reached', 'valid', false);
+            yield new IndexerStatusSnapshotFakeIndexer('should_not_be_reached', 'valid', false);
         })();
 
         $this->collectionFactory
@@ -258,7 +294,7 @@ class IndexerStatusSnapshotTest extends TestCase
     {
         $indexers = [];
         for ($i = 1; $i <= 7; $i++) {
-            $indexers[] = new FakeIndexer('indexer_' . $i, 'valid', $i % 2 === 0);
+            $indexers[] = new IndexerStatusSnapshotFakeIndexer('indexer_' . $i, 'valid', $i % 2 === 0);
         }
 
         $this->collectionFactory
@@ -269,10 +305,10 @@ class IndexerStatusSnapshotTest extends TestCase
         $this->indexerRegistry
             ->expects(self::exactly(7))
             ->method('get')
-            ->willReturnCallback(static function (string $indexerId) use ($indexers): FakeIndexer {
+            ->willReturnCallback(static function (string $indexerId) use ($indexers): IndexerStatusSnapshotFakeIndexer {
                 $needle = array_filter(
                     $indexers,
-                    static function (FakeIndexer $indexer) use ($indexerId): bool {
+                    static function (IndexerStatusSnapshotFakeIndexer $indexer) use ($indexerId): bool {
                         return $indexer->getId() === $indexerId;
                     }
                 );
@@ -293,8 +329,8 @@ class IndexerStatusSnapshotTest extends TestCase
     public function testEachDetailContainsStateAndModeTuple(): void
     {
         $indexers = [
-            new FakeIndexer('catalog_product_price', 'valid', false),
-            new FakeIndexer('catalogsearch_fulltext', 'valid', true),
+            new IndexerStatusSnapshotFakeIndexer('catalog_product_price', 'valid', false),
+            new IndexerStatusSnapshotFakeIndexer('catalogsearch_fulltext', 'valid', true),
         ];
 
         $this->collectionFactory
@@ -305,7 +341,7 @@ class IndexerStatusSnapshotTest extends TestCase
         $this->indexerRegistry
             ->expects(self::exactly(2))
             ->method('get')
-            ->willReturnCallback(static function (string $indexerId) use ($indexers): FakeIndexer {
+            ->willReturnCallback(static function (string $indexerId) use ($indexers): IndexerStatusSnapshotFakeIndexer {
                 if ($indexerId === 'catalogsearch_fulltext') {
                     return $indexers[1];
                 }
@@ -352,7 +388,7 @@ class IndexerStatusSnapshotTest extends TestCase
     }
 }
 
-final class FakeIndexer
+final class IndexerStatusSnapshotFakeIndexer
 {
     public function __construct(
         private string $id,
