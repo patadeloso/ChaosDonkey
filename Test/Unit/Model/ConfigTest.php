@@ -70,6 +70,45 @@ class ConfigTest extends TestCase
         self::assertTrue($config->isGraphQlPipelineStressEnabled());
     }
 
+    public function testItReadsIndexerStatusSnapshotEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_ENABLE_INDEXER_STATUS_SNAPSHOT, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isIndexerStatusSnapshotEnabled());
+    }
+
+    public function testItReadsCacheBackendHealthSnapshotEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_ENABLE_CACHE_BACKEND_HEALTH_SNAPSHOT, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isCacheBackendHealthSnapshotEnabled());
+    }
+
+    public function testItReadsCronQueueHealthSnapshotEnabledFlagFromExpectedPath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('isSetFlag')
+            ->with(Config::CONFIG_PATH_ENABLE_CRON_QUEUE_HEALTH_SNAPSHOT, 'default', null)
+            ->willReturn(true);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertTrue($config->isCronQueueHealthSnapshotEnabled());
+    }
+
     public function testItReadsCronEnabledFlagFromExpectedPath(): void
     {
         $this->scopeConfig
@@ -266,6 +305,18 @@ class ConfigTest extends TestCase
             'graphql pipeline stress' => [
                 'graphql_pipeline_stress',
                 Config::CONFIG_PATH_ENABLE_GRAPHQL_PIPELINE_STRESS,
+            ],
+            'indexer status snapshot' => [
+                'indexer_status_snapshot',
+                Config::CONFIG_PATH_ENABLE_INDEXER_STATUS_SNAPSHOT,
+            ],
+            'cache backend health snapshot' => [
+                'cache_backend_health_snapshot',
+                Config::CONFIG_PATH_ENABLE_CACHE_BACKEND_HEALTH_SNAPSHOT,
+            ],
+            'cron queue health snapshot' => [
+                'cron_queue_health_snapshot',
+                Config::CONFIG_PATH_ENABLE_CRON_QUEUE_HEALTH_SNAPSHOT,
             ],
         ];
     }

@@ -1,14 +1,17 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <type name="ShaunMcManus\ChaosDonkey\Model\ActionPool">
-        <arguments>
-            <argument name="actions" xsi:type="array">
-                <item name="reindex_all" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\ReindexAll</item>
-                <item name="cache_flush" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\CacheFlush</item>
-                <item name="graphql_pipeline_stress" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\GraphQlInternalPipelineStress</item>
-            </argument>
-        </arguments>
-    </type>
+            <arguments>
+                <argument name="actions" xsi:type="array">
+                    <item name="reindex_all" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\ReindexAll</item>
+                    <item name="cache_flush" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\CacheFlush</item>
+                    <item name="graphql_pipeline_stress" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\GraphQlInternalPipelineStress</item>
+                    <item name="indexer_status_snapshot" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\IndexerStatusSnapshot</item>
+                    <item name="cache_backend_health_snapshot" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\CacheBackendHealthSnapshot</item>
+                    <item name="cron_queue_health_snapshot" xsi:type="object">ShaunMcManus\ChaosDonkey\Action\CronQueueHealthSnapshot</item>
+                </argument>
+            </arguments>
+        </type>
 
     <type name="Magento\Framework\Console\CommandListInterface">
         <arguments>

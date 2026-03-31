@@ -21,6 +21,21 @@
                     <label>Enable GraphQL Pipeline Stress</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
+                <field id="enable_indexer_status_snapshot" translate="label" type="select" sortOrder="45" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Indexer Status Snapshot</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>When enabled, the command can trigger an indexer status snapshot probe.</comment>
+                </field>
+                <field id="enable_cache_backend_health_snapshot" translate="label" type="select" sortOrder="46" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Cache Backend Health Snapshot</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>When enabled, the command can trigger a cache backend health probe.</comment>
+                </field>
+                <field id="enable_cron_queue_health_snapshot" translate="label" type="select" sortOrder="47" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Cron/Queue Health Snapshot</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>When enabled, the command can trigger a cron and queue health probe.</comment>
+                </field>
                 <field id="cron_enabled" translate="label" type="select" sortOrder="50" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Cron Enabled</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
