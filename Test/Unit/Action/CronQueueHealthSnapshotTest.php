@@ -9,12 +9,14 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Adapter\AdapterInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use RuntimeException;
 use ShaunMcManus\ChaosDonkey\Action\CronQueueHealthSnapshot;
 use ShaunMcManus\ChaosDonkey\Model\Probe\ClockInterface;
 use ShaunMcManus\ChaosDonkey\Model\Probe\ProbeOutputFormatter;
 use Symfony\Component\Console\Output\BufferedOutput;
 
+#[AllowMockObjectsWithoutExpectations]
 class CronQueueHealthSnapshotTest extends TestCase
 {
     private ResourceConnection&MockObject $resourceConnection;
@@ -122,6 +124,93 @@ class CronQueueHealthSnapshotTest extends TestCase
         self::assertStringContainsString('subsystem=cron item=pending_older_15m status=warn value="12"', $result['output']);
     }
 
+    public function testItNormalizesCronGetTableNameExceptions(): void
+    {
+        $this->resourceConnection
+            ->expects(self::once())
+            ->method('getConnection')
+            ->willReturn($this->adapter);
+
+        $this->resourceConnection
+            ->expects(self::exactly(4))
+            ->method('getTableName')
+            ->willReturnCallback(function (string $table): string {
+                if ($table === 'cron_schedule') {
+                    throw new RuntimeException('cron table metadata failed');
+                }
+
+                return $table;
+            });
+
+        $this->configureClockNow(new DateTimeImmutable('2026-01-01 12:00:00', new DateTimeZone('UTC')));
+
+        $this->configureTablePresence([
+            'cron_schedule' => true,
+            'queue' => true,
+            'queue_message' => true,
+            'queue_message_status' => true,
+        ]);
+
+        $this->adapter
+            ->expects(self::once())
+            ->method('fetchOne')
+            ->willReturn('2');
+
+        $result = $this->runProbe();
+        $lines = $this->splitOutput($result['output']);
+
+        self::assertStringContainsString('status=unknown', $lines[0]);
+        self::assertStringContainsString('cron=unknown', $lines[0]);
+        self::assertStringContainsString('subsystem=cron item=failures_last_60m status=unknown value="n/a"', $result['output']);
+        self::assertStringContainsString('subsystem=cron item=pending_older_15m status=unknown value="n/a"', $result['output']);
+        self::assertStringContainsString('subsystem=queue item=activity_last_60m status=ok value="2"', $result['output']);
+        self::assertFalse($result['instance']->isSuccess());
+    }
+
+    public function testItNormalizesQueueIsTableExistsExceptions(): void
+    {
+        $this->resourceConnection
+            ->expects(self::once())
+            ->method('getConnection')
+            ->willReturn($this->adapter);
+
+        $this->resourceConnection
+            ->expects(self::exactly(4))
+            ->method('getTableName')
+            ->willReturnCallback(static function (string $table): string {
+                return $table;
+            });
+
+        $this->configureClockNow(new DateTimeImmutable('2026-01-01 12:00:00', new DateTimeZone('UTC')));
+
+        $this->adapter
+            ->expects(self::exactly(2))
+            ->method('isTableExists')
+            ->willReturnCallback(function (string $table): bool {
+                if ($table === 'queue') {
+                    throw new RuntimeException('queue existence check failed');
+                }
+
+                return true;
+            });
+
+        $this->adapter
+            ->expects(self::exactly(2))
+            ->method('fetchOne')
+            ->willReturnOnConsecutiveCalls('3', '1');
+
+        $result = $this->runProbe();
+        $lines = $this->splitOutput($result['output']);
+
+        self::assertStringContainsString('status=warn', $lines[0]);
+        self::assertStringContainsString('queue=unknown', $lines[0]);
+        self::assertStringContainsString('subsystem=queue item=tables_present status=unknown value="n/a"', $result['output']);
+        self::assertStringContainsString('subsystem=queue item=activity_last_60m status=unknown value="n/a"', $result['output']);
+        self::assertStringContainsString('subsystem=cron item=failures_last_60m status=warn value="3"', $result['output']);
+        self::assertStringContainsString('subsystem=cron item=pending_older_15m status=ok value="1"', $result['output']);
+        self::assertTrue($result['instance']->isSuccess());
+    }
+
     public function testItWarnsQueueWhenCronWarnsAndQueueHasNoActivity(): void
     {
         $this->configureResourceConnection($this->adapter);
@@ -149,7 +238,7 @@ class CronQueueHealthSnapshotTest extends TestCase
             $lines[1]
         );
         self::assertSame(
-            'ProbeDetail[cron_queue_health_snapshot] subsystem=cron item=pending_older_15m status=warn value="0"',
+            'ProbeDetail[cron_queue_health_snapshot] subsystem=cron item=pending_older_15m status=ok value="0"',
             $lines[2]
         );
         self::assertSame(
@@ -394,7 +483,6 @@ class CronQueueHealthSnapshotTest extends TestCase
     private function configureClockNow(DateTimeImmutable $now): void
     {
         $this->clock
-            ->expects(self::once())
             ->method('nowUtc')
             ->willReturn($now);
     }

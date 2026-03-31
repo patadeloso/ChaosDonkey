@@ -104,13 +104,13 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
                 new ProbeDetailRow(
                     'cron',
                     'failures_last_60m',
-                    $cronSnapshot['status'],
+                    $cronSnapshot['failures_status'],
                     $cronSnapshot['failures_last_60m']
                 ),
                 new ProbeDetailRow(
                     'cron',
                     'pending_older_15m',
-                    $cronSnapshot['status'],
+                    $cronSnapshot['pending_status'],
                     $cronSnapshot['pending_older_15m']
                 ),
                 new ProbeDetailRow(
@@ -131,19 +131,27 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
     }
 
     /**
-     * @return array{status: string, failures_last_60m: string, pending_older_15m: string}
+     * @return array{
+     *     status: string,
+     *     failures_status: string,
+     *     pending_status: string,
+     *     failures_last_60m: string,
+     *     pending_older_15m: string
+     * }
      */
     private function collectCronSnapshot(
         AdapterInterface $adapter,
         string $lookback60m,
         string $lookback15m
     ): array {
-        $cronTable = $this->resourceConnection->getTableName('cron_schedule');
-
         try {
+            $cronTable = $this->resourceConnection->getTableName('cron_schedule');
+
             if (!$adapter->isTableExists($cronTable)) {
                 return [
                     'status' => 'unknown',
+                    'failures_status' => 'unknown',
+                    'pending_status' => 'unknown',
                     'failures_last_60m' => 'n/a',
                     'pending_older_15m' => 'n/a',
                 ];
@@ -167,14 +175,21 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
                 ['lookback_15m' => $lookback15m]
             );
 
+            $failuresStatus = ($failures > 0) ? 'warn' : 'ok';
+            $pendingStatus = ($pending > 10) ? 'warn' : 'ok';
+
             return [
-                'status' => ($failures > 0 || $pending > 10) ? 'warn' : 'ok',
+                'status' => ($failuresStatus === 'warn' || $pendingStatus === 'warn') ? 'warn' : 'ok',
+                'failures_status' => $failuresStatus,
+                'pending_status' => $pendingStatus,
                 'failures_last_60m' => (string) $failures,
                 'pending_older_15m' => (string) $pending,
             ];
         } catch (Throwable $exception) {
             return [
                 'status' => 'unknown',
+                'failures_status' => 'unknown',
+                'pending_status' => 'unknown',
                 'failures_last_60m' => 'n/a',
                 'pending_older_15m' => 'n/a',
             ];
@@ -195,25 +210,25 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
         string $lookback60m,
         string $cronStatus
     ): array {
-        $queueTable = $this->resourceConnection->getTableName('queue');
-        $queueMessageTable = $this->resourceConnection->getTableName('queue_message');
-        $queueMessageStatusTable = $this->resourceConnection->getTableName('queue_message_status');
-
-        if (
-            !$adapter->isTableExists($queueTable)
-            || !$adapter->isTableExists($queueMessageTable)
-            || !$adapter->isTableExists($queueMessageStatusTable)
-        ) {
-            return [
-                'status' => 'unavailable',
-                'tables_present_status' => 'unavailable',
-                'tables_present' => 'false',
-                'activity_status' => 'unavailable',
-                'activity_last_60m' => 'n/a',
-            ];
-        }
-
         try {
+            $queueTable = $this->resourceConnection->getTableName('queue');
+            $queueMessageTable = $this->resourceConnection->getTableName('queue_message');
+            $queueMessageStatusTable = $this->resourceConnection->getTableName('queue_message_status');
+
+            if (
+                !$adapter->isTableExists($queueTable)
+                || !$adapter->isTableExists($queueMessageTable)
+                || !$adapter->isTableExists($queueMessageStatusTable)
+            ) {
+                return [
+                    'status' => 'unavailable',
+                    'tables_present_status' => 'unavailable',
+                    'tables_present' => 'false',
+                    'activity_status' => 'unavailable',
+                    'activity_last_60m' => 'n/a',
+                ];
+            }
+
             $activityCount = $this->fetchCount(
                 $adapter,
                 sprintf(
@@ -233,8 +248,8 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
         } catch (Throwable $exception) {
             return [
                 'status' => 'unknown',
-                'tables_present_status' => 'ok',
-                'tables_present' => 'true',
+                'tables_present_status' => 'unknown',
+                'tables_present' => 'n/a',
                 'activity_status' => 'unknown',
                 'activity_last_60m' => 'n/a',
             ];
