@@ -31,6 +31,25 @@ class ProbeOutputFormatterTest extends TestCase
         );
     }
 
+    public function testFormatSummaryEscapesQuotesAndNewlines(): void
+    {
+        $snapshot = new ProbeSnapshot(
+            'db_ping',
+            'warn',
+            'Service "endpoint"' . "\n" . 'status 500'
+        );
+
+        $expected = 'Probe[db_ping] status=warn msg=' . json_encode(
+            'Service "endpoint"' . "\n" . 'status 500',
+            JSON_UNESCAPED_UNICODE
+        );
+
+        self::assertSame(
+            $expected,
+            $this->formatter->formatSummary($snapshot)
+        );
+    }
+
     public function testFormatTopDetailsSortsBySeveritySubsystemItemWithCap(): void
     {
         $snapshot = new ProbeSnapshot(
@@ -63,6 +82,23 @@ class ProbeOutputFormatterTest extends TestCase
 
         self::assertSame(
             'Probe[storage_readiness] subsystem=filesystem item=readable status=ok msg="All mounts readable"',
+            $this->formatter->formatDetail('storage_readiness', $detail)
+        );
+    }
+
+    public function testFormatDetailCanonicalEnvelopeEscapesQuotesAndNewlines(): void
+    {
+        $detail = new ProbeDetailRow('filesystem', 'readable', 'ok', 'Check "permissions"' . "\n" . 'for /var');
+
+        $expected = 'Probe[storage_readiness] subsystem=filesystem item=readable status=ok msg=' . json_encode(
+            'Check "permissions"' . "\n" . 'for /var',
+            JSON_UNESCAPED_UNICODE
+        );
+
+        $expected = str_replace('\\/', '/', $expected);
+
+        self::assertSame(
+            $expected,
             $this->formatter->formatDetail('storage_readiness', $detail)
         );
     }
@@ -111,6 +147,20 @@ class ProbeOutputFormatterTest extends TestCase
             . "Probe[cache] subsystem=queue item=worker status=unavailable msg=\"fourth detail\"\n"
             . "Probe[cache] subsystem=search item=query status=warn msg=\"fifth detail\"",
             $this->formatter->formatTopDetails($snapshot)
+        );
+    }
+
+    public function testFormatLinesWithNoDetailsReturnsSummaryOnly(): void
+    {
+        $snapshot = new ProbeSnapshot(
+            'cache',
+            'ok',
+            'All cache checks passed'
+        );
+
+        self::assertSame(
+            'Probe[cache] status=ok msg="All cache checks passed"',
+            $this->formatter->formatLines($snapshot)
         );
     }
 }

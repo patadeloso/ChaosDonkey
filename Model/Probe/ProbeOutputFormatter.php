@@ -21,7 +21,7 @@ class ProbeOutputFormatter
             'Probe[%s] status=%s msg="%s"',
             $snapshot->getProbeCode(),
             $snapshot->getStatus(),
-            $snapshot->getSummary()
+            $this->normalizeMessage($snapshot->getSummary())
         );
     }
 
@@ -53,7 +53,7 @@ class ProbeOutputFormatter
             $detail->getSubsystem(),
             $detail->getItem(),
             $detail->getStatus(),
-            $detail->getMessage()
+            $this->normalizeMessage($detail->getMessage())
         );
     }
 
@@ -87,5 +87,20 @@ class ProbeOutputFormatter
         }
 
         return $a->getItem() <=> $b->getItem();
+    }
+
+    private function normalizeMessage(string $message): string
+    {
+        $normalized = str_replace("\r\n", "\n", $message);
+        $normalized = str_replace("\r", "\n", $normalized);
+
+        $replacements = [
+            '\\' => '\\\\',
+            '"' => '\\"',
+            "\n" => '\\n',
+            "\t" => '\\t',
+        ];
+
+        return strtr($normalized, $replacements);
     }
 }
