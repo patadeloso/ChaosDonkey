@@ -18,4 +18,9 @@
             </argument>
         </arguments>
     </type>
+
+    <preference
+        for="ShaunMcManus\ChaosDonkey\Model\Probe\ClockInterface"
+        type="ShaunMcManus\ChaosDonkey\Model\Probe\SystemClock"
+    />
 </config>
