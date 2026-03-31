@@ -62,7 +62,7 @@ class CacheBackendHealthSnapshot implements ChaosActionInterface
         $enabledTypeCount = 0;
 
         foreach ($types as $typeCode => $metadata) {
-            $isEnabled = isset($metadata['status']) && (int) $metadata['status'] === 1;
+            $isEnabled = $this->isEnabledFromMetadata($metadata);
             if ($isEnabled) {
                 $enabledTypeCount++;
             }
@@ -91,10 +91,10 @@ class CacheBackendHealthSnapshot implements ChaosActionInterface
 
             $details[] = new ProbeDetailRow('cache_backend', 'default_frontend', 'ok', $adapter);
 
-            return new ProbeSnapshot(
-                $this->getCode(),
-                'ok',
-                sprintf(
+        return new ProbeSnapshot(
+            $this->getCode(),
+            'ok',
+            sprintf(
                     '%d cache types, %d enabled, backend adapter=%s',
                     count($types),
                     $enabledTypeCount,
@@ -127,6 +127,15 @@ class CacheBackendHealthSnapshot implements ChaosActionInterface
             self::UNKNOWN_SUMMARY,
             $details
         );
+    }
+
+    private function isEnabledFromMetadata(mixed $metadata): bool
+    {
+        if (!is_array($metadata) || !array_key_exists('status', $metadata)) {
+            return false;
+        }
+
+        return (int) $metadata['status'] === 1;
     }
 
     private function sanitizeAdapterLabel(string $adapterClass): string

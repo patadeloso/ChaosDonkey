@@ -179,6 +179,110 @@ class CacheBackendHealthSnapshotTest extends TestCase
         );
     }
 
+    public function testItHandlesMalformedMetadataRowsWithoutThrowing(): void
+    {
+        $this->cacheTypeList
+            ->expects(self::once())
+            ->method('getTypes')
+            ->willReturn([
+                'config' => ['status' => 1],
+                'weird_object' => new \stdClass(),
+                'missing_status' => [],
+                'layout' => ['status' => 0],
+            ]);
+
+        $this->frontendPool
+            ->expects(self::once())
+            ->method('get')
+            ->with('default')
+            ->willReturn(new CacheBackendHealthSnapshotFakeFrontend(new CacheBackendHealthSnapshotSafeBackend()));
+
+        $result = $this->runProbe();
+
+        self::assertTrue($result['instance']->isSuccess());
+        self::assertSame(
+            'Probe[cache_backend_health_snapshot] status=ok msg="4 cache types, 1 enabled, backend adapter=cachebackendhealthsnapshotsafebackend"',
+            $this->splitOutput($result['output'])[0]
+        );
+        self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=config status=ok value="enabled=true"', $result['output']);
+        self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=weird_object status=ok value="enabled=false"', $result['output']);
+        self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=missing_status status=ok value="enabled=false"', $result['output']);
+        self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=layout status=ok value="enabled=false"', $result['output']);
+    }
+
+    public function testItSanitizesAdapterLabelForBackendClassName(): void
+    {
+        $refl = new \ReflectionMethod(CacheBackendHealthSnapshot::class, 'sanitizeAdapterLabel');
+        $refl->setAccessible(true);
+
+        $action = new CacheBackendHealthSnapshot(
+            $this->cacheTypeList,
+            $this->frontendPool,
+            new ProbeOutputFormatter()
+        );
+
+        $label = $refl->invoke(
+            $action,
+            'Vendor\\Module\\Backend--Adapter!Name'
+        );
+
+        self::assertSame('backend_adapter_name', $label);
+    }
+
+    public function testAdapterLabelFallsBackToUnavailableWhenSanitizedEmpty(): void
+    {
+        $refl = new \ReflectionMethod(CacheBackendHealthSnapshot::class, 'sanitizeAdapterLabel');
+        $refl->setAccessible(true);
+
+        $action = new CacheBackendHealthSnapshot(
+            $this->cacheTypeList,
+            $this->frontendPool,
+            new ProbeOutputFormatter()
+        );
+
+        $label = $refl->invoke($action, '!!!');
+
+        self::assertSame('unavailable', $label);
+    }
+
+    public function testItTreatsNullDefaultFrontendAsUnavailable(): void
+    {
+        $this->cacheTypeList
+            ->expects(self::once())
+            ->method('getTypes')
+            ->willReturn([
+                'config' => ['status' => 1],
+                'layout' => ['status' => 0],
+            ]);
+
+        $this->frontendPool
+            ->expects(self::once())
+            ->method('get')
+            ->with('default')
+            ->willReturn(null);
+
+        $result = $this->runProbe();
+
+        self::assertFalse($result['instance']->isSuccess());
+        self::assertSame(
+            'Probe[cache_backend_health_snapshot] status=unknown msg="cache snapshot unavailable"',
+            $this->splitOutput($result['output'])[0]
+        );
+        self::assertSame(4, count($this->splitOutput($result['output'])));
+        self::assertStringContainsString(
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=config status=ok value="enabled=true"',
+            $result['output']
+        );
+        self::assertStringContainsString(
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=layout status=ok value="enabled=false"',
+            $result['output']
+        );
+        self::assertStringContainsString(
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=default_frontend status=unknown value="unavailable"',
+            $result['output']
+        );
+    }
+
     private function runProbe(): array
     {
         $output = new BufferedOutput();
