@@ -89,7 +89,7 @@ class CacheBackendHealthSnapshot implements ChaosActionInterface
             $backend = $defaultFrontend->getBackend();
             $adapter = $this->sanitizeAdapterLabel(get_class($backend));
 
-            $details[] = new ProbeDetailRow('cache_backend', 'backend', 'ok', $adapter);
+            $details[] = new ProbeDetailRow('cache_backend', 'default_frontend', 'ok', $adapter);
 
             return new ProbeSnapshot(
                 $this->getCode(),
@@ -103,7 +103,7 @@ class CacheBackendHealthSnapshot implements ChaosActionInterface
                 $details
             );
         } catch (Throwable $exception) {
-            $details[] = new ProbeDetailRow('cache_backend', 'backend', 'warn', 'resolution_failed');
+            $details[] = new ProbeDetailRow('cache_backend', 'default_frontend', 'warn', 'resolution_failed');
 
             return new ProbeSnapshot(
                 $this->getCode(),
@@ -121,8 +121,6 @@ class CacheBackendHealthSnapshot implements ChaosActionInterface
     private function resolveBackendUnavailable(array $details): ProbeSnapshot
     {
         $details[] = new ProbeDetailRow('cache_backend', 'default_frontend', 'unknown', 'unavailable');
-        $details[] = new ProbeDetailRow('cache_backend', 'backend', 'unknown', 'unavailable');
-
         return new ProbeSnapshot(
             $this->getCode(),
             'unknown',

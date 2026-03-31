@@ -55,7 +55,7 @@ class CacheBackendHealthSnapshotTest extends TestCase
         self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=config status=ok value="enabled=true"', $result['output']);
         self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=layout status=ok value="enabled=false"', $result['output']);
         self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=full_page status=ok value="enabled=true"', $result['output']);
-        self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=backend status=ok value="cachebackendhealthsnapshotsafebackend"', $result['output']);
+        self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=default_frontend status=ok value="cachebackendhealthsnapshotsafebackend"', $result['output']);
     }
 
     public function testItWritesWarnSummaryWhenDefaultBackendResolutionFails(): void
@@ -82,7 +82,7 @@ class CacheBackendHealthSnapshotTest extends TestCase
             $this->splitOutput($result['output'])[0]
         );
         self::assertStringContainsString(
-            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=backend status=warn value="resolution_failed"',
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=default_frontend status=warn value="resolution_failed"',
             $result['output']
         );
     }
@@ -147,10 +147,6 @@ class CacheBackendHealthSnapshotTest extends TestCase
         );
         self::assertStringContainsString(
             'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=default_frontend status=unknown value="unavailable"',
-            $result['output']
-        );
-        self::assertStringContainsString(
-            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=backend status=unknown value="unavailable"',
             $result['output']
         );
     }
