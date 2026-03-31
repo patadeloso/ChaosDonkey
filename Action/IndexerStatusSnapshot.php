@@ -46,14 +46,7 @@ class IndexerStatusSnapshot implements ChaosActionInterface
         try {
             $indexers = $this->collectionFactory->create();
         } catch (Throwable $exception) {
-            return new ProbeSnapshot(
-                $this->getCode(),
-                'unknown',
-                'n/a indexers, n/a need reindex, modes=unavailable',
-                [
-                    new ProbeDetailRow('indexer', 'enumeration', 'unknown', 'unavailable'),
-                ]
-            );
+            return $this->createEnumerationFailureSnapshot();
         }
 
         $details = [];
@@ -64,75 +57,79 @@ class IndexerStatusSnapshot implements ChaosActionInterface
         $scheduledModeCount = 0;
         $realtimeModeCount = 0;
 
-        foreach ($indexers as $indexer) {
-            $indexerCount++;
+        try {
+            foreach ($indexers as $indexer) {
+                $indexerCount++;
 
-            $indexerId = 'indexer';
-
-            try {
-                $indexerId = (string) $indexer->getId();
-            } catch (Throwable $exception) {
-                $unavailableStateCount++;
-                $details[] = new ProbeDetailRow(
-                    'indexer',
-                    'enumeration',
-                    'unknown',
-                    'unavailable'
-                );
-
-                continue;
-            }
-
-            $state = 'unavailable';
-            $mode = 'unavailable';
-            $detailStatus = 'unknown';
-
-            try {
-                $registryIndexer = $this->indexerRegistry->get($indexerId);
+                $indexerId = 'indexer';
 
                 try {
-                    $state = (string) $registryIndexer->getStatus();
+                    $indexerId = (string) $indexer->getId();
+                } catch (Throwable $exception) {
+                    $unavailableStateCount++;
+                    $details[] = new ProbeDetailRow(
+                        'indexer',
+                        'enumeration',
+                        'unknown',
+                        'unavailable'
+                    );
+
+                    continue;
+                }
+
+                $state = 'unavailable';
+                $mode = 'unavailable';
+                $detailStatus = 'unknown';
+
+                try {
+                    $registryIndexer = $this->indexerRegistry->get($indexerId);
+
+                    try {
+                        $state = (string) $registryIndexer->getStatus();
+                    } catch (Throwable $exception) {
+                        $state = 'unavailable';
+                        $unavailableStateCount++;
+                    }
+
+                    try {
+                        $mode = $registryIndexer->isScheduled() ? 'schedule' : 'realtime';
+                    } catch (Throwable $exception) {
+                        $mode = 'unavailable';
+                    }
                 } catch (Throwable $exception) {
                     $state = 'unavailable';
+                    $mode = 'unavailable';
                     $unavailableStateCount++;
                 }
 
-                try {
-                    $mode = $registryIndexer->isScheduled() ? 'schedule' : 'realtime';
-                } catch (Throwable $exception) {
-                    $mode = 'unavailable';
+                if ($mode === 'unavailable') {
+                    $unavailableModeCount++;
+                } elseif ($mode === 'schedule') {
+                    $scheduledModeCount++;
+                } else {
+                    $realtimeModeCount++;
                 }
-            } catch (Throwable $exception) {
-                $state = 'unavailable';
-                $mode = 'unavailable';
-                $unavailableStateCount++;
-            }
 
-            if ($mode === 'unavailable') {
-                $unavailableModeCount++;
-            } elseif ($mode === 'schedule') {
-                $scheduledModeCount++;
-            } else {
-                $realtimeModeCount++;
-            }
+                if ($state === 'unavailable') {
+                    $detailStatus = 'unknown';
+                } elseif ($this->requiresReindex($state)) {
+                    $detailStatus = 'warn';
+                    $needsReindex++;
+                } elseif ($mode === 'unavailable') {
+                    $detailStatus = 'unknown';
+                } else {
+                    $detailStatus = 'ok';
+                }
 
-            if ($state === 'unavailable') {
-                $detailStatus = 'unknown';
-            } elseif ($this->requiresReindex($state)) {
-                $detailStatus = 'warn';
-                $needsReindex++;
-            } elseif ($mode === 'unavailable') {
-                $detailStatus = 'unknown';
-            } else {
-                $detailStatus = 'ok';
+                $details[] = new ProbeDetailRow(
+                    'indexer',
+                    $indexerId,
+                    $detailStatus,
+                    sprintf('state=%s;mode=%s', $state, $mode)
+                );
             }
-
-            $details[] = new ProbeDetailRow(
-                'indexer',
-                $indexerId,
-                $detailStatus,
-                sprintf('state=%s;mode=%s', $state, $mode)
-            );
+        } catch (Throwable $exception) {
+            return $this->createEnumerationFailureSnapshot();
         }
 
         $overallStatus = 'ok';
@@ -172,5 +169,17 @@ class IndexerStatusSnapshot implements ChaosActionInterface
     private function requiresReindex(string $state): bool
     {
         return in_array(strtolower((string) $state), ['invalid', 'reindex-required', 'reindex_required'], true);
+    }
+
+    private function createEnumerationFailureSnapshot(): ProbeSnapshot
+    {
+        return new ProbeSnapshot(
+            $this->getCode(),
+            'unknown',
+            'n/a indexers, n/a need reindex, modes=unavailable',
+            [
+                new ProbeDetailRow('indexer', 'enumeration', 'unknown', 'unavailable'),
+            ]
+        );
     }
 }

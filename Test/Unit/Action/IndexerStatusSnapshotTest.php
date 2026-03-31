@@ -224,6 +224,36 @@ class IndexerStatusSnapshotTest extends TestCase
         self::assertCount(2, $this->splitOutput($result['output']));
     }
 
+    public function testItFallsBackToUnknownWhenEnumerationThrowsDuringIteration(): void
+    {
+        $indexers = (function (): iterable {
+            throw new RuntimeException('indexer enumeration failed');
+            yield new FakeIndexer('should_not_be_reached', 'valid', false);
+        })();
+
+        $this->collectionFactory
+            ->expects(self::once())
+            ->method('create')
+            ->willReturn($indexers);
+
+        $this->indexerRegistry
+            ->expects(self::never())
+            ->method('get');
+
+        $result = $this->runProbe([]);
+
+        self::assertFalse($result['instance']->isSuccess());
+        self::assertStringContainsString(
+            'Probe[indexer_status_snapshot] status=unknown msg="n/a indexers, n/a need reindex, modes=unavailable"',
+            $result['output']
+        );
+        self::assertStringContainsString(
+            'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=enumeration status=unknown value="unavailable"',
+            $result['output']
+        );
+        self::assertCount(2, $this->splitOutput($result['output']));
+    }
+
     public function testItLimitsOutputToSummaryPlusFiveTopDetails(): void
     {
         $indexers = [];
