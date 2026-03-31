@@ -62,6 +62,12 @@ class ChaosDonkeyKickCron
 
         $result = $this->kickExecutor->execute();
 
+        foreach ($result['messages'] as $message) {
+            if (str_starts_with($message, 'Probe[') || str_starts_with($message, 'ProbeDetail[')) {
+                $this->logMessage($message);
+            }
+        }
+
         $this->logMessage(sprintf(
             'ChaosDonkey cron completed with kick %d and outcome %s.',
             $result['kick'],
