@@ -14,10 +14,11 @@ Rolls a D20 and executes a mapped outcome.
   - `admin/chaos_donkey/enable_indexer_status_snapshot`
   - `admin/chaos_donkey/enable_cache_backend_health_snapshot`
   - `admin/chaos_donkey/enable_cron_queue_health_snapshot`
-  - If a disabled action outcome is rolled, rerolls up to 20 times.
-  - If all action/probe toggles are disabled, prints `All configured chaos actions/probes are disabled. Rolling non-action outcomes only.`
-  - If reroll attempts are exhausted, falls back to `napping`.
-  - If enabled, saves:
+- If enabled and an action/probe executes, the command delegates execution to `KickExecutor`.
+- If a disabled action outcome is rolled, rerolls up to 20 times.
+- If all action/probe toggles are disabled, prints `All configured chaos actions/probes are disabled. Rolling non-action outcomes only.`
+- If reroll attempts are exhausted, falls back to `napping`.
+- If enabled, saves:
   - `admin/chaos_donkey/last_run` (ISO-8601 timestamp)
   - `admin/chaos_donkey/last_kick` (rolled value)
   - `admin/chaos_donkey/last_outcome` (outcome key)
@@ -42,6 +43,20 @@ Probe actions return their output as canonical lines in the command result paylo
 - `ProbeDetail[<outcome>] subsystem=<name> item=<name> status=<status> value="<value>"`
 
 `chaosdonkey:kick` prints each line from the executor payload as-is, without reformatting.
+
+### Task 8 verification evidence
+
+Executed in-repo in this worktree:
+
+- Targeted kick command test:
+  - `vendor/bin/phpunit Test/Unit/Console/Command/ChaosDonkeyKickTest.php`
+- Targeted status command test:
+  - `vendor/bin/phpunit Test/Unit/Console/Command/ChaosDonkeyStatusTest.php`
+- Full suite:
+  - `vendor/bin/phpunit`
+- Manual checks attempted:
+  - Attempted `bin/magento` config/status/kick checks, but this worktree is module-only and does not include Magento bootstrap.
+  - Limitation: `bin/magento` is unavailable (`zsh: no such file or directory`).
 
 ## Cron Automation
 
