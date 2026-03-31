@@ -210,39 +210,58 @@ class CacheBackendHealthSnapshotTest extends TestCase
         self::assertStringContainsString('ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=layout status=ok value="enabled=false"', $result['output']);
     }
 
-    public function testItSanitizesAdapterLabelForBackendClassName(): void
+    public function testItSanitizesUnsafeAdapterClassNameWhenResolvingBackend(): void
     {
-        $refl = new \ReflectionMethod(CacheBackendHealthSnapshot::class, 'sanitizeAdapterLabel');
-        $refl->setAccessible(true);
+        $this->cacheTypeList
+            ->expects(self::once())
+            ->method('getTypes')
+            ->willReturn([
+                'config' => ['status' => 1],
+            ]);
 
-        $action = new CacheBackendHealthSnapshot(
-            $this->cacheTypeList,
-            $this->frontendPool,
-            new ProbeOutputFormatter()
+        $this->frontendPool
+            ->expects(self::once())
+            ->method('get')
+            ->with('default')
+            ->willReturn(new CacheBackendHealthSnapshotFakeFrontend(new ÄBackend()));
+
+        $result = $this->runProbe();
+
+        self::assertSame(
+            'Probe[cache_backend_health_snapshot] status=ok msg="1 cache types, 1 enabled, backend adapter=backend"',
+            $this->splitOutput($result['output'])[0]
         );
-
-        $label = $refl->invoke(
-            $action,
-            'Vendor\\Module\\Backend--Adapter!Name'
+        self::assertStringContainsString(
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=default_frontend status=ok value="backend"',
+            $result['output']
         );
-
-        self::assertSame('backend_adapter_name', $label);
     }
 
-    public function testAdapterLabelFallsBackToUnavailableWhenSanitizedEmpty(): void
+    public function testAdapterLabelFallsBackToUnavailableWhenUnsanitizable(): void
     {
-        $refl = new \ReflectionMethod(CacheBackendHealthSnapshot::class, 'sanitizeAdapterLabel');
-        $refl->setAccessible(true);
+        $this->cacheTypeList
+            ->expects(self::once())
+            ->method('getTypes')
+            ->willReturn([
+                'config' => ['status' => 1],
+            ]);
 
-        $action = new CacheBackendHealthSnapshot(
-            $this->cacheTypeList,
-            $this->frontendPool,
-            new ProbeOutputFormatter()
+        $this->frontendPool
+            ->expects(self::once())
+            ->method('get')
+            ->with('default')
+            ->willReturn(new CacheBackendHealthSnapshotFakeFrontend(new Ä()));
+
+        $result = $this->runProbe();
+
+        self::assertSame(
+            'Probe[cache_backend_health_snapshot] status=ok msg="1 cache types, 1 enabled, backend adapter=unavailable"',
+            $this->splitOutput($result['output'])[0]
         );
-
-        $label = $refl->invoke($action, '!!!');
-
-        self::assertSame('unavailable', $label);
+        self::assertStringContainsString(
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache_backend item=default_frontend status=ok value="unavailable"',
+            $result['output']
+        );
     }
 
     public function testItTreatsNullDefaultFrontendAsUnavailable(): void
@@ -330,5 +349,13 @@ final class CacheBackendHealthSnapshotFakeFrontend
 }
 
 final class CacheBackendHealthSnapshotSafeBackend
+{
+}
+
+final class ÄBackend
+{
+}
+
+final class Ä
 {
 }
