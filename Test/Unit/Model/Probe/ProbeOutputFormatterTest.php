@@ -22,7 +22,8 @@ class ProbeOutputFormatterTest extends TestCase
         $snapshot = new ProbeSnapshot(
             'db_ping',
             'warn',
-            'Database response too slow'
+            'Database response too slow',
+            []
         );
 
         self::assertSame(
@@ -36,7 +37,8 @@ class ProbeOutputFormatterTest extends TestCase
         $snapshot = new ProbeSnapshot(
             'db_ping',
             'warn',
-            'Service "endpoint"' . "\n" . 'status 500'
+            'Service "endpoint"' . "\n" . 'status 500',
+            []
         );
 
         $expected = 'Probe[db_ping] status=warn msg=' . json_encode(
@@ -155,7 +157,8 @@ class ProbeOutputFormatterTest extends TestCase
         $snapshot = new ProbeSnapshot(
             'cache',
             'ok',
-            'All cache checks passed'
+            'All cache checks passed',
+            []
         );
 
         self::assertSame(

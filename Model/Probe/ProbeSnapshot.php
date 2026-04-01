@@ -12,7 +12,7 @@ class ProbeSnapshot
         private string $probeCode,
         private string $status,
         private string $summary,
-        private array $details = [],
+        private array $details,
         private bool $preserveDetailOrder = false
     ) {
     }
