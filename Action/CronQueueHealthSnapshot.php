@@ -16,7 +16,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CronQueueHealthSnapshot implements ChaosActionInterface
 {
-    private const string CODE = 'cron_queue_health_snapshot';
+    private const CODE = 'cron_queue_health_snapshot';
 
     public function __construct(
         private ResourceConnection $resourceConnection,

@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CacheBackendHealthSnapshot implements ChaosActionInterface
 {
-    private const string UNKNOWN_SUMMARY = 'cache snapshot unavailable';
+    private const UNKNOWN_SUMMARY = 'cache snapshot unavailable';
 
     public function __construct(
         private TypeListInterface $typeList,

@@ -8,7 +8,7 @@ class ProbeOutputFormatter
     /**
      * @var array<string, int>
      */
-    private const array SEVERITY_RANKING = [
+    private const SEVERITY_RANKING = [
         'warn' => 4,
         'unavailable' => 3,
         'unknown' => 2,
