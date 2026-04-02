@@ -57,7 +57,7 @@ class CronQueueHealthSnapshot implements ChaosActionInterface
                 [
                     new ProbeDetailRow('cron', 'failures_last_60m', 'unknown', 'n/a'),
                     new ProbeDetailRow('cron', 'pending_older_15m', 'unknown', 'n/a'),
-                    new ProbeDetailRow('queue', 'tables_present', 'unavailable', 'false'),
+                    new ProbeDetailRow('queue', 'tables_present', 'unavailable', 'n/a'),
                     new ProbeDetailRow('queue', 'activity_last_60m', 'unknown', 'n/a'),
                 ],
                 true

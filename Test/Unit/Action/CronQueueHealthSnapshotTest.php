@@ -396,11 +396,28 @@ class CronQueueHealthSnapshotTest extends TestCase
 
         $result = $this->runProbe();
 
-        self::assertStringContainsString('status=unknown', $this->splitOutput($result['output'])[0]);
-        self::assertStringContainsString('cron=unknown, queue=unknown, failures_last_60m=n/a, pending_older_15m=n/a, activity_last_60m=n/a', $this->splitOutput($result['output'])[0]);
-        self::assertStringContainsString('subsystem=cron item=failures_last_60m status=unknown value="n/a"', $result['output']);
-        self::assertStringContainsString('subsystem=queue item=tables_present status=unavailable value="false"', $result['output']);
-        self::assertStringContainsString('subsystem=queue item=activity_last_60m status=unknown value="n/a"', $result['output']);
+        $lines = $this->splitOutput($result['output']);
+        self::assertCount(5, $lines);
+        self::assertSame(
+            'Probe[cron_queue_health_snapshot] status=unknown msg="cron=unknown, queue=unknown, failures_last_60m=n/a, pending_older_15m=n/a, activity_last_60m=n/a"',
+            $lines[0]
+        );
+        self::assertSame(
+            'ProbeDetail[cron_queue_health_snapshot] subsystem=cron item=failures_last_60m status=unknown value="n/a"',
+            $lines[1]
+        );
+        self::assertSame(
+            'ProbeDetail[cron_queue_health_snapshot] subsystem=cron item=pending_older_15m status=unknown value="n/a"',
+            $lines[2]
+        );
+        self::assertSame(
+            'ProbeDetail[cron_queue_health_snapshot] subsystem=queue item=tables_present status=unavailable value="n/a"',
+            $lines[3]
+        );
+        self::assertSame(
+            'ProbeDetail[cron_queue_health_snapshot] subsystem=queue item=activity_last_60m status=unknown value="n/a"',
+            $lines[4]
+        );
         self::assertFalse($result['instance']->isSuccess());
     }
 
