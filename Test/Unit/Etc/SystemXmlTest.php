@@ -10,6 +10,35 @@ use PHPUnit\Framework\TestCase;
 
 class SystemXmlTest extends TestCase
 {
+    public function testExecutionProfileSelectorIsExposedAtDefaultScopeWithExpectedSourceModel(): void
+    {
+        $document = new DOMDocument();
+        $document->load(__DIR__ . '/../../../etc/adminhtml/system.xml');
+
+        $xpath = new DOMXPath($document);
+        $nodes = $xpath->query('/config/system/section[@id="admin"]/group[@id="chaos_donkey"]/field[@id="execution_profile"]');
+
+        self::assertNotFalse($nodes);
+        self::assertSame(1, $nodes->length, 'Expected execution_profile field to be defined');
+
+        $field = $nodes->item(0);
+
+        self::assertInstanceOf(\DOMElement::class, $field);
+        self::assertSame('select', $field->getAttribute('type'));
+        self::assertSame('1', $field->getAttribute('showInDefault'));
+        self::assertSame('0', $field->getAttribute('showInWebsite'));
+        self::assertSame('0', $field->getAttribute('showInStore'));
+
+        $sourceNodes = $xpath->query('source_model', $field);
+
+        self::assertNotFalse($sourceNodes);
+        self::assertSame(1, $sourceNodes->length);
+        self::assertSame(
+            'ShaunMcManus\\ChaosDonkey\\Model\\Config\\Source\\ExecutionProfileOptions',
+            trim((string) $sourceNodes->item(0)->textContent)
+        );
+    }
+
     #[DataProvider('probeFieldProvider')]
     public function testProbeTogglesExistAndUseExpectedDefaultsAndSource(
         string $fieldId,

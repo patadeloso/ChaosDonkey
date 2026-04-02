@@ -36,6 +36,18 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getLastOutcome')
             ->willReturn('reindex_all');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
 
         $command = new ChaosDonkeyStatus($this->config);
         $tester = new CommandTester($command);
@@ -49,6 +61,8 @@ class ChaosDonkeyStatusTest extends TestCase
         self::assertStringContainsString('Last run: 2026-03-28T20:22:00+00:00', $display);
         self::assertStringContainsString('Last kick: 2', $display);
         self::assertStringContainsString('Last outcome: reindex_all', $display);
+        self::assertStringContainsString('Configured profile: balanced', $display);
+        self::assertStringContainsString('Effective profile: balanced', $display);
     }
 
     public function testItDisplaysUnknownWhenNoSavedStateExists(): void
@@ -69,6 +83,18 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getLastOutcome')
             ->willReturn(null);
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
 
         $command = new ChaosDonkeyStatus($this->config);
         $tester = new CommandTester($command);
@@ -82,6 +108,8 @@ class ChaosDonkeyStatusTest extends TestCase
         self::assertStringContainsString('Last run: Never', $display);
         self::assertStringContainsString('Last kick: Never', $display);
         self::assertStringContainsString('Last outcome: Never', $display);
+        self::assertStringContainsString('Configured profile: balanced', $display);
+        self::assertStringContainsString('Effective profile: balanced', $display);
 
     }
 
@@ -115,6 +143,18 @@ class ChaosDonkeyStatusTest extends TestCase
             ->method('getLastOutcome')
             ->willReturn('reindex_all');
         $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
+        $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
             ->willReturnCallback(function (string $code) use (&$requestedActionCodes, $actionStates): bool {
@@ -135,6 +175,8 @@ Enabled: Yes
 Last run: 2026-03-28T20:22:00+00:00
 Last kick: 2
 Last outcome: reindex_all
+Configured profile: balanced
+Effective profile: balanced
 
 Configured Action/Probe Toggles
 Reindex all: Enabled
@@ -193,6 +235,18 @@ OUTPUT;
             ->method('getLastOutcome')
             ->willReturn(null);
         $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
+        $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
             ->willReturnCallback(function (string $code) use (&$requestedActionCodes, $actionStates): bool {
@@ -212,6 +266,8 @@ OUTPUT;
         self::assertStringContainsString('Last run: Never', $display);
         self::assertStringContainsString('Last kick: Never', $display);
         self::assertStringContainsString('Last outcome: Never', $display);
+        self::assertStringContainsString('Configured profile: balanced', $display);
+        self::assertStringContainsString('Effective profile: balanced', $display);
         self::assertStringContainsString('Configured Action/Probe Toggles', $display);
         self::assertStringContainsString('Reindex all: Disabled', $display);
         self::assertStringContainsString('GraphQL pipeline stress: Enabled', $display);
@@ -251,6 +307,18 @@ OUTPUT;
             ->method('getLastOutcome')
             ->willReturn(null);
         $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
+        $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
             ->willReturn(false);
@@ -273,5 +341,108 @@ Cron queue health snapshot: Disabled
 OUTPUT;
 
         self::assertStringContainsString($expectedSection, $display);
+    }
+
+    public function testItDisplaysFallbackStatusWhenConfiguredAndEffectiveProfilesDiverge(): void
+    {
+        $config = $this->createProfileStatusConfigDouble(
+            configuredProfile: 'chaos',
+            effectiveProfile: 'balanced',
+            fallbackReason: 'invalid_profile_table'
+        );
+
+        $command = new ChaosDonkeyStatus($config);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $display = $tester->getDisplay();
+
+        self::assertStringContainsString('Configured profile: chaos', $display);
+        self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Fallback reason: invalid_profile_table', $display);
+    }
+
+    public function testItDisplaysEmergencyFallbackContractForCorruptBalancedProfile(): void
+    {
+        $config = $this->createProfileStatusConfigDouble(
+            configuredProfile: 'balanced',
+            effectiveProfile: 'balanced',
+            fallbackReason: 'invalid_fallback_profile'
+        );
+
+        $command = new ChaosDonkeyStatus($config);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $display = $tester->getDisplay();
+
+        self::assertStringContainsString('Configured profile: balanced', $display);
+        self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Fallback reason: invalid_fallback_profile', $display);
+        self::assertStringContainsString('Fallback mode: emergency_legacy_balanced_table', $display);
+    }
+
+    private function createProfileStatusConfigDouble(
+        string $configuredProfile,
+        string $effectiveProfile,
+        ?string $fallbackReason
+    ): Config
+    {
+        return new class ($configuredProfile, $effectiveProfile, $fallbackReason) extends Config {
+            private string $configuredProfile;
+
+            private string $effectiveProfile;
+
+            private ?string $fallbackReason;
+
+            public function __construct(string $configuredProfile, string $effectiveProfile, ?string $fallbackReason)
+            {
+                $this->configuredProfile = $configuredProfile;
+                $this->effectiveProfile = $effectiveProfile;
+                $this->fallbackReason = $fallbackReason;
+            }
+
+            public function isEnabled(string $scopeType = 'store', ?string $scopeCode = null): bool
+            {
+                return true;
+            }
+
+            public function getLastRun(string $scopeType = 'default', ?string $scopeCode = null): ?string
+            {
+                return '2026-04-01T12:00:00+00:00';
+            }
+
+            public function getLastKick(string $scopeType = 'default', ?string $scopeCode = null): ?string
+            {
+                return '8';
+            }
+
+            public function getLastOutcome(string $scopeType = 'default', ?string $scopeCode = null): ?string
+            {
+                return 'critical_failure';
+            }
+
+            public function isActionEnabled(string $actionCode): bool
+            {
+                return true;
+            }
+
+            public function getExecutionProfile(string $scopeType = 'default', ?string $scopeCode = null): string
+            {
+                return $this->configuredProfile;
+            }
+
+            public function getEffectiveExecutionProfile(string $scopeType = 'default', ?string $scopeCode = null): string
+            {
+                return $this->effectiveProfile;
+            }
+
+            public function getExecutionProfileFallbackReason(string $scopeType = 'default', ?string $scopeCode = null): ?string
+            {
+                return $this->fallbackReason;
+            }
+        };
     }
 }
