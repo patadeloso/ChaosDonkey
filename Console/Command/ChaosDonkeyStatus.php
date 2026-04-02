@@ -10,6 +10,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ChaosDonkeyStatus extends Command
 {
+    private const ACTION_LABELS = [
+        'reindex_all' => 'Reindex all',
+        'cache_flush' => 'Cache flush',
+        'graphql_pipeline_stress' => 'GraphQL pipeline stress',
+        'indexer_status_snapshot' => 'Indexer status snapshot',
+        'cache_backend_health_snapshot' => 'Cache backend health snapshot',
+        'cron_queue_health_snapshot' => 'Cron queue health snapshot',
+    ];
+
     private Config $config;
 
     public function __construct(Config $config)
@@ -45,7 +54,13 @@ class ChaosDonkeyStatus extends Command
         $output->writeln('Last kick: ' . $lastKick);
         $output->writeln('Last outcome: ' . $lastOutcome);
 
+        $output->writeln('');
+        $output->writeln('Configured Action/Probe Toggles');
+
+        foreach (self::ACTION_LABELS as $actionCode => $label) {
+            $output->writeln($label . ': ' . ($this->config->isActionEnabled($actionCode) ? 'Enabled' : 'Disabled'));
+        }
+
         return Command::SUCCESS;
     }
 }
-
