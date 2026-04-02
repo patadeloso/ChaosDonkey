@@ -89,11 +89,21 @@ Cron log behavior:
 - Non-probe chatter from the executor result is intentionally not logged by cron to keep logs focused.
 
 ### `bin/magento chaosdonkey:status`
-Prints real module status values from config/state:
-- Enabled (`Yes`/`No`)
-- Last run (`Never` if unset)
-- Last kick (`Never` if unset)
-- Last outcome (`Never` if unset)
+Shows the operator-oriented status snapshot for ChaosDonkey.
+
+- Enabled (`Yes`/`No`) — reads `admin/chaos_donkey/enabled` using the command's existing store-scoped behavior.
+- Last run (`Never` if unset) — reads `admin/chaos_donkey/last_run` from default scope.
+- Last kick (`Never` if unset) — reads `admin/chaos_donkey/last_kick` from default scope.
+- Last outcome (`Never` if unset) — reads `admin/chaos_donkey/last_outcome` from default scope.
+- Configured Action/Probe Toggles (default scope):
+  - `Reindex all: Enabled|Disabled`
+  - `Cache flush: Enabled|Disabled`
+  - `GraphQL pipeline stress: Enabled|Disabled`
+  - `Indexer status snapshot: Enabled|Disabled`
+  - `Cache backend health snapshot: Enabled|Disabled`
+  - `Cron queue health snapshot: Enabled|Disabled`
+
+This makes the runtime values (last run/kick/outcome) and toggle rows explicit as `default` scope configuration, while module enabled state follows the existing store-scoped status command behavior.
 
 ## Reindex Behavior
 
