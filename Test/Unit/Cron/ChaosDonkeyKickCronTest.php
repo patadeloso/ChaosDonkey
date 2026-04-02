@@ -280,6 +280,67 @@ class ChaosDonkeyKickCronTest extends TestCase
         ], $cron->messages);
     }
 
+    public function testItDoesNotLogProfileFallbackMetadataLinesInV1(): void
+    {
+        $cron = $this->createCron(5);
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
+        $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
+        $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 11,
+                'outcome' => 'napping',
+                'configured_profile' => 'custom_profile_that_falls_back',
+                'effective_profile' => 'balanced',
+                'fallback_reason' => 'invalid_configured_profile',
+                'messages' => [
+                    'ChaosDonkeyKick kicks your Magento. You rolled a 11',
+                    'Probe[indexer_status_snapshot] status=ok msg="safe"',
+                    'The donkeys are napping',
+                ],
+            ]);
+
+        $cron->execute();
+
+        self::assertSame([
+            'ChaosDonkey cron started.',
+            'Executing ChaosDonkey cron at hour 5.',
+            'Probe[indexer_status_snapshot] status=ok msg="safe"',
+            'ChaosDonkey cron completed with kick 11 and outcome napping.',
+        ], $cron->messages);
+        self::assertFalse(
+            $this->containsFragment($cron->messages, 'Configured profile:'),
+            'Cron v1 output should not include configured profile line.'
+        );
+        self::assertFalse(
+            $this->containsFragment($cron->messages, 'Effective profile:'),
+            'Cron v1 output should not include effective profile line.'
+        );
+        self::assertFalse(
+            $this->containsFragment($cron->messages, 'Fallback reason:'),
+            'Cron v1 output should not include fallback reason line.'
+        );
+    }
+
+    /**
+     * @param list<string> $messages
+     */
+    private function containsFragment(array $messages, string $fragment): bool
+    {
+        foreach ($messages as $message) {
+            if (str_contains($message, $fragment)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function createCron(int $currentHour): CronHarness
     {
         return new CronHarness($this->config, $this->kickExecutor, $this->logger, $currentHour);
