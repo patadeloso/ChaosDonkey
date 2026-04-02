@@ -117,21 +117,21 @@ This makes the runtime values (last run/kick/outcome) and toggle rows explicit a
 
 ## Reindex Behavior
 
-On roll `2`, `ReindexAll` iterates all Magento indexers and:
+When `reindex_all` is the selected outcome, `ReindexAll` iterates all Magento indexers and:
 - prints per-indexer progress
 - runs `reindexAll()` on each indexer
 - catches per-indexer exceptions and continues reindexing the rest
 
 ## Cache Flush Behavior
 
-On roll `3`, `CacheFlush`:
+When `cache_flush` is the selected outcome, `CacheFlush`:
 - enumerates available cache types
 - flushes each type individually
 - continues on per-type failures and reports a summary
 
 ## Internal GraphQL Pipeline Stress
 
-On roll `4`, `GraphQlInternalPipelineStress`:
+When `graphql_pipeline_stress` is the selected outcome, `GraphQlInternalPipelineStress`:
 - creates synthetic in-process requests targeting `/graphql`
 - dispatches those requests through Magento's internal HTTP pipeline (no external web HTTP calls)
 - uses default built-in GraphQL payloads in Phase 1
