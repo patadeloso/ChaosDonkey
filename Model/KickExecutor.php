@@ -12,6 +12,9 @@ class KickExecutor
         'reindex_all',
         'cache_flush',
         'graphql_pipeline_stress',
+        'indexer_status_snapshot',
+        'cache_backend_health_snapshot',
+        'cron_queue_health_snapshot',
     ];
 
     public function __construct(
@@ -36,7 +39,7 @@ class KickExecutor
         $enabledActions = $this->getEnabledActions();
 
         if (!in_array(true, $enabledActions, true)) {
-            $messages[] = 'All configured chaos actions are disabled. Rolling non-action outcomes only.';
+            $messages[] = 'All configured chaos actions/probes are disabled. Rolling non-action outcomes only.';
         }
 
         $kick = 0;
@@ -70,7 +73,11 @@ class KickExecutor
                 }
             }
 
-            $messages[] = $result->getSummary();
+            $summary = $result->getSummary();
+
+            if ($summary !== '') {
+                $messages[] = $summary;
+            }
         } else {
             match ($outcome) {
                 'critical_failure' => $messages[] = 'Critical Failure! Better check all of your donkeys.',

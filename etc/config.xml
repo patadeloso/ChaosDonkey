@@ -8,6 +8,9 @@
                 <enable_reindex_all>1</enable_reindex_all>
                 <enable_cache_flush>1</enable_cache_flush>
                 <enable_graphql_pipeline_stress>1</enable_graphql_pipeline_stress>
+                <enable_indexer_status_snapshot>1</enable_indexer_status_snapshot>
+                <enable_cache_backend_health_snapshot>1</enable_cache_backend_health_snapshot>
+                <enable_cron_queue_health_snapshot>1</enable_cron_queue_health_snapshot>
                 <cron_enabled>0</cron_enabled>
                 <cron_expression>*/30 * * * *</cron_expression>
                 <cron_allowed_hours></cron_allowed_hours>

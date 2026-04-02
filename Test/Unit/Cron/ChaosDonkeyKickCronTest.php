@@ -103,6 +103,145 @@ class ChaosDonkeyKickCronTest extends TestCase
         ], $cron->messages);
     }
 
+    public function testItLogsOnlyProbeAndProbeDetailLinesFromKickResult(): void
+    {
+        $cron = $this->createCron(5);
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
+        $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
+        $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 5,
+                'outcome' => 'napping',
+                'messages' => [
+                    'ChaosDonkeyKick kicks your Magento. You rolled a 5',
+                    'Probe[indexer_status_snapshot] status=ok msg="2 indexers"',
+                    'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=foo status=ok value="bar"',
+                    'The donkeys are napping',
+                ],
+            ]);
+
+        $cron->execute();
+
+        self::assertSame([
+            'ChaosDonkey cron started.',
+            'Executing ChaosDonkey cron at hour 5.',
+            'Probe[indexer_status_snapshot] status=ok msg="2 indexers"',
+            'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=foo status=ok value="bar"',
+            'ChaosDonkey cron completed with kick 5 and outcome napping.',
+        ], $cron->messages);
+    }
+
+    public function testItSkipsNonProbeLinesFromKickResultMessages(): void
+    {
+        $cron = $this->createCron(5);
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
+        $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
+        $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 5,
+                'outcome' => 'napping',
+                'messages' => [
+                    'ChaosDonkeyKick kicks your Magento. You rolled a 7',
+                    'The donkeys are napping',
+                ],
+            ]);
+
+        $cron->execute();
+
+        self::assertSame([
+            'ChaosDonkey cron started.',
+            'Executing ChaosDonkey cron at hour 5.',
+            'ChaosDonkey cron completed with kick 5 and outcome napping.',
+        ], $cron->messages);
+    }
+
+    public function testItPreservesProbeOutputOrder(): void
+    {
+        $cron = $this->createCron(5);
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
+        $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
+        $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 5,
+                'outcome' => 'napping',
+                'messages' => [
+                    'Probe[indexer_status_snapshot] status=ok msg="first"',
+                    'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=first status=ok value="value"',
+                    'Some non-probe chatter',
+                    'ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=backend status=warn value="value"',
+                    'Probe[cache_backend_health_snapshot] status=warn msg="second"',
+                ],
+            ]);
+
+        $cron->execute();
+
+        self::assertSame([
+            'ChaosDonkey cron started.',
+            'Executing ChaosDonkey cron at hour 5.',
+            'Probe[indexer_status_snapshot] status=ok msg="first"',
+            'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=first status=ok value="value"',
+            'ProbeDetail[cache_backend_health_snapshot] subsystem=cache item=backend status=warn value="value"',
+            'Probe[cache_backend_health_snapshot] status=warn msg="second"',
+            'ChaosDonkey cron completed with kick 5 and outcome napping.',
+        ], $cron->messages);
+    }
+
+    public function testItLogsProbeOutputBeforeCompletionMarker(): void
+    {
+        $cron = $this->createCron(5);
+
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('isCronEnabled')->willReturn(true);
+        $this->config->expects(self::once())->method('getCronExpression')->willReturn('*/30 * * * *');
+        $this->config->expects(self::once())->method('getCronAllowedHoursRaw')->willReturn('1, 5, 12');
+        $this->config->expects(self::once())->method('getCronAllowedHours')->willReturn([1, 5, 12]);
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 5,
+                'outcome' => 'napping',
+                'messages' => [
+                    'Some non-probe line',
+                    'Probe[indexer_status_snapshot] status=warn msg="before completion"',
+                    'ProbeDetail[indexer_status_snapshot] subsystem=indexer item=before completion status=warn value="value"',
+                ],
+            ]);
+
+        $cron->execute();
+
+        $completionIndex = array_key_last($cron->messages);
+
+        self::assertIsInt($completionIndex);
+        self::assertSame('ChaosDonkey cron completed with kick 5 and outcome napping.', $cron->messages[$completionIndex]);
+
+        $probeIndex = array_search('Probe[indexer_status_snapshot] status=warn msg="before completion"', $cron->messages, true);
+        $probeDetailIndex = array_search('ProbeDetail[indexer_status_snapshot] subsystem=indexer item=before completion status=warn value="value"', $cron->messages, true);
+
+        self::assertIsInt($probeIndex);
+        self::assertIsInt($probeDetailIndex);
+        self::assertLessThan($completionIndex, $probeIndex);
+        self::assertLessThan($completionIndex, $probeDetailIndex);
+    }
+
     public function testItSkipsWhenAllowedHoursConfigIsInvalid(): void
     {
         $cron = $this->createCron(8);
