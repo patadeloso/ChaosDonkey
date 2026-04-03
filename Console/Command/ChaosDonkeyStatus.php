@@ -56,9 +56,14 @@ class ChaosDonkeyStatus extends Command
         $configuredProfile = $this->config->getExecutionProfile();
         $effectiveProfile = $this->config->getEffectiveExecutionProfile();
         $fallbackReason = $this->config->getExecutionProfileFallbackReason();
+        $cronEnabled = $this->config->isCronEnabled();
         $recentHistoryUnavailable = false;
+        $latestCliExecution = null;
+        $latestCronExecution = null;
 
         try {
+            $latestCliExecution = $this->executionHistoryStorage->getLatestForSource('cli');
+            $latestCronExecution = $this->executionHistoryStorage->getLatestForSource('cron');
             $recentHistory = $this->executionHistoryStorage->getRecent(self::RECENT_HISTORY_LIMIT);
         } catch (\Throwable) {
             $recentHistoryUnavailable = true;
@@ -79,6 +84,13 @@ class ChaosDonkeyStatus extends Command
             if ($fallbackReason === 'invalid_fallback_profile') {
                 $output->writeln('Fallback mode: emergency_legacy_balanced_table');
             }
+        }
+
+        $output->writeln('Last CLI execution: ' . $this->formatLatestExecution($latestCliExecution, $recentHistoryUnavailable));
+        $output->writeln('Last cron execution: ' . $this->formatLatestExecution($latestCronExecution, $recentHistoryUnavailable));
+
+        if (!$recentHistoryUnavailable && $cronEnabled && $latestCronExecution === null) {
+            $output->writeln('Cron notice: Cron is enabled but no cron execution has been recorded yet.');
         }
 
         $output->writeln('');
@@ -106,6 +118,24 @@ class ChaosDonkeyStatus extends Command
 
     private function formatRecentHistoryRow(array $historyRow): string
     {
+        return '- ' . (string) $historyRow['executed_at'] . ' | ' . (string) $historyRow['source'] . ' | ' . $this->formatExecutionSummary($historyRow);
+    }
+
+    private function formatLatestExecution(?array $historyRow, bool $recentHistoryUnavailable): string
+    {
+        if ($recentHistoryUnavailable) {
+            return 'History unavailable.';
+        }
+
+        if ($historyRow === null) {
+            return 'Never recorded.';
+        }
+
+        return (string) $historyRow['executed_at'] . ' | ' . $this->formatExecutionSummary($historyRow);
+    }
+
+    private function formatExecutionSummary(array $historyRow): string
+    {
         $profileSummary = (string) $historyRow['configured_profile'];
 
         if ((string) $historyRow['configured_profile'] !== (string) $historyRow['effective_profile']) {
@@ -113,9 +143,7 @@ class ChaosDonkeyStatus extends Command
         }
 
         $line = sprintf(
-            '- %s | %s | kick %s | %s | profile %s',
-            (string) $historyRow['executed_at'],
-            (string) $historyRow['source'],
+            'kick %s | %s | profile %s',
             (string) $historyRow['kick'],
             (string) $historyRow['outcome'],
             $profileSummary

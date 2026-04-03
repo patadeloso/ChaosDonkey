@@ -32,6 +32,6 @@ Purpose: Turn execution history into a clearer operator snapshot by showing the 
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 7.1 | Add source-aware execution-history reads for the latest CLI and cron runs | `ExecutionHistoryStorage` exposes tested reads for the most recent `cli` and `cron` rows without regressing the existing bounded recent-history query | Phase 6 | cc:TODO |
-| 7.2 | Extend `chaosdonkey:status` with last CLI/cron execution lines and a soft cron notice | Command output shows last CLI execution, last cron execution, and a soft notice when cron is enabled but no cron history exists, proven by command tests and preserving degraded-history behavior | 7.1 | cc:TODO |
-| 7.3 | Document source-aware status health and re-verify the branch | `README.md` explains the new status-health lines and `composer validate --no-check-publish` plus `vendor/bin/phpunit` pass after the changes | 7.2 | cc:TODO |
+| 7.1 | Add source-aware execution-history reads for the latest CLI and cron runs | `ExecutionHistoryStorage` exposes tested reads for the most recent `cli` and `cron` rows without regressing the existing bounded recent-history query | Phase 6 | cc:完了 |
+| 7.2 | Extend `chaosdonkey:status` with last CLI/cron execution lines and a soft cron notice | Command output shows last CLI execution, last cron execution, and a soft notice when cron is enabled but no cron history exists, proven by command tests and preserving degraded-history behavior | 7.1 | cc:完了 |
+| 7.3 | Document source-aware status health and re-verify the branch | `README.md` explains the new status-health lines and `composer validate --no-check-publish` plus `vendor/bin/phpunit` pass after the changes | 7.2 | cc:完了 |

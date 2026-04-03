@@ -53,4 +53,18 @@ class ExecutionHistoryStorage
 
         return $this->resourceConnection->getConnection()->fetchAll($sql);
     }
+
+    public function getLatestForSource(string $source): ?array
+    {
+        $tableName = $this->resourceConnection->getTableName(self::TABLE_NAME);
+        $sql = sprintf(
+            'SELECT %s FROM %s WHERE source = :source ORDER BY history_id DESC LIMIT 1',
+            self::SELECT_COLUMNS,
+            $tableName
+        );
+
+        $row = $this->resourceConnection->getConnection()->fetchRow($sql, ['source' => $source]);
+
+        return is_array($row) ? $row : null;
+    }
 }

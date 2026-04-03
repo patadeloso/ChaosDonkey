@@ -53,7 +53,11 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
-        $this->expectRecentHistory([]);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(false);
+        $this->expectHistoryReads([], null, null);
 
         $tester = $this->createCommandTester();
 
@@ -68,6 +72,8 @@ class ChaosDonkeyStatusTest extends TestCase
         self::assertStringContainsString('Last outcome: reindex_all', $display);
         self::assertStringContainsString('Configured profile: balanced', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Last CLI execution: Never recorded.', $display);
+        self::assertStringContainsString('Last cron execution: Never recorded.', $display);
         self::assertStringContainsString('Recent execution history', $display);
         self::assertStringContainsString('None recorded.', $display);
     }
@@ -103,7 +109,11 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
-        $this->expectRecentHistory([]);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(false);
+        $this->expectHistoryReads([], null, null);
 
         $tester = $this->createCommandTester();
 
@@ -118,6 +128,8 @@ class ChaosDonkeyStatusTest extends TestCase
         self::assertStringContainsString('Last outcome: Never', $display);
         self::assertStringContainsString('Configured profile: balanced', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Last CLI execution: Never recorded.', $display);
+        self::assertStringContainsString('Last cron execution: Never recorded.', $display);
         self::assertStringContainsString('Recent execution history', $display);
         self::assertStringContainsString('None recorded.', $display);
 
@@ -165,7 +177,11 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
-        $this->expectRecentHistory([]);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(false);
+        $this->expectHistoryReads([], null, null);
         $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
@@ -188,6 +204,8 @@ Last kick: 2
 Last outcome: reindex_all
 Configured profile: balanced
 Effective profile: balanced
+Last CLI execution: Never recorded.
+Last cron execution: Never recorded.
 
 Recent execution history
 None recorded.
@@ -261,7 +279,11 @@ OUTPUT;
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
-        $this->expectRecentHistory([]);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(false);
+        $this->expectHistoryReads([], null, null);
         $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
@@ -283,6 +305,8 @@ OUTPUT;
         self::assertStringContainsString('Last outcome: Never', $display);
         self::assertStringContainsString('Configured profile: balanced', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Last CLI execution: Never recorded.', $display);
+        self::assertStringContainsString('Last cron execution: Never recorded.', $display);
         self::assertStringContainsString('Recent execution history', $display);
         self::assertStringContainsString('None recorded.', $display);
         self::assertStringContainsString('Configured Action/Probe Toggles', $display);
@@ -347,10 +371,14 @@ OUTPUT;
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(true);
         $this->executionHistoryStorage
             ->expects(self::once())
-            ->method('getRecent')
-            ->with(5)
+            ->method('getLatestForSource')
+            ->with('cli')
             ->willThrowException(new RuntimeException('history query failed'));
         $this->config
             ->expects(self::exactly(6))
@@ -374,6 +402,8 @@ Last kick: 2
 Last outcome: reindex_all
 Configured profile: balanced
 Effective profile: balanced
+Last CLI execution: History unavailable.
+Last cron execution: History unavailable.
 
 Recent execution history
 History unavailable.
@@ -400,6 +430,7 @@ OUTPUT;
             ],
             $requestedActionCodes
         );
+        self::assertStringNotContainsString('Cron notice:', $display);
     }
 
     public function testItShowsAllDisabledTogglesAsDisabled(): void
@@ -433,7 +464,11 @@ OUTPUT;
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
-        $this->expectRecentHistory([]);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(false);
+        $this->expectHistoryReads([], null, null);
         $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
@@ -446,6 +481,12 @@ OUTPUT;
         $display = trim($tester->getDisplay());
 
         $expectedSection = <<<OUTPUT
+Last CLI execution: Never recorded.
+Last cron execution: Never recorded.
+
+Recent execution history
+None recorded.
+
 Configured Action/Probe Toggles
 Reindex all: Disabled
 Cache flush: Disabled
@@ -460,31 +501,31 @@ OUTPUT;
 
     public function testItDisplaysFallbackStatusWhenConfiguredAndEffectiveProfilesDiverge(): void
     {
+        $latestCron = [
+            'executed_at' => '2026-04-02 10:15:00',
+            'source' => 'cron',
+            'kick' => '7',
+            'outcome' => 'napping',
+            'configured_profile' => 'balanced',
+            'effective_profile' => 'balanced',
+            'fallback_reason' => null,
+        ];
+        $latestCli = [
+            'executed_at' => '2026-04-02 09:45:00',
+            'source' => 'cli',
+            'kick' => '3',
+            'outcome' => 'cache_flush',
+            'configured_profile' => 'chaos',
+            'effective_profile' => 'balanced',
+            'fallback_reason' => 'invalid_profile_table',
+        ];
         $config = $this->createProfileStatusConfigDouble(
             configuredProfile: 'chaos',
             effectiveProfile: 'balanced',
-            fallbackReason: 'invalid_profile_table'
+            fallbackReason: 'invalid_profile_table',
+            cronEnabled: true
         );
-        $this->expectRecentHistory([
-            [
-                'executed_at' => '2026-04-02 10:15:00',
-                'source' => 'cron',
-                'kick' => '7',
-                'outcome' => 'napping',
-                'configured_profile' => 'balanced',
-                'effective_profile' => 'balanced',
-                'fallback_reason' => null,
-            ],
-            [
-                'executed_at' => '2026-04-02 09:45:00',
-                'source' => 'cli',
-                'kick' => '3',
-                'outcome' => 'cache_flush',
-                'configured_profile' => 'chaos',
-                'effective_profile' => 'balanced',
-                'fallback_reason' => 'invalid_profile_table',
-            ],
-        ]);
+        $this->expectHistoryReads([$latestCron, $latestCli], $latestCli, $latestCron);
 
         $tester = new CommandTester(new ChaosDonkeyStatus($config, $this->executionHistoryStorage));
 
@@ -495,6 +536,8 @@ OUTPUT;
         self::assertStringContainsString('Configured profile: chaos', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
         self::assertStringContainsString('Fallback reason: invalid_profile_table', $display);
+        self::assertStringContainsString('Last CLI execution: 2026-04-02 09:45:00 | kick 3 | cache_flush | profile chaos -> balanced | fallback invalid_profile_table', $display);
+        self::assertStringContainsString('Last cron execution: 2026-04-02 10:15:00 | kick 7 | napping | profile balanced', $display);
         self::assertStringContainsString('Recent execution history', $display);
         self::assertStringContainsString('- 2026-04-02 10:15:00 | cron | kick 7 | napping | profile balanced', $display);
         self::assertStringContainsString('- 2026-04-02 09:45:00 | cli | kick 3 | cache_flush | profile chaos -> balanced | fallback invalid_profile_table', $display);
@@ -507,7 +550,7 @@ OUTPUT;
             effectiveProfile: 'balanced',
             fallbackReason: 'invalid_fallback_profile'
         );
-        $this->expectRecentHistory([]);
+        $this->expectHistoryReads([], null, null);
 
         $tester = new CommandTester(new ChaosDonkeyStatus($config, $this->executionHistoryStorage));
 
@@ -519,12 +562,85 @@ OUTPUT;
         self::assertStringContainsString('Effective profile: balanced', $display);
         self::assertStringContainsString('Fallback reason: invalid_fallback_profile', $display);
         self::assertStringContainsString('Fallback mode: emergency_legacy_balanced_table', $display);
+        self::assertStringContainsString('Last CLI execution: Never recorded.', $display);
+        self::assertStringContainsString('Last cron execution: Never recorded.', $display);
         self::assertStringContainsString('Recent execution history', $display);
         self::assertStringContainsString('None recorded.', $display);
     }
 
-    private function expectRecentHistory(array $historyRows): void
+    public function testItShowsSoftCronNoticeWhenCronIsEnabledWithoutCronHistory(): void
     {
+        $this->config = $this->createMock(Config::class);
+        $latestCli = [
+            'executed_at' => '2026-04-03 09:45:00',
+            'source' => 'cli',
+            'kick' => '11',
+            'outcome' => 'cache_flush',
+            'configured_profile' => 'balanced',
+            'effective_profile' => 'balanced',
+            'fallback_reason' => null,
+        ];
+
+        $this->config
+            ->expects(self::once())
+            ->method('isEnabled')
+            ->willReturn(true);
+        $this->config
+            ->expects(self::once())
+            ->method('getLastRun')
+            ->willReturn('2026-04-03T09:45:00+00:00');
+        $this->config
+            ->expects(self::once())
+            ->method('getLastKick')
+            ->willReturn('11');
+        $this->config
+            ->expects(self::once())
+            ->method('getLastOutcome')
+            ->willReturn('cache_flush');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
+        $this->config
+            ->expects(self::once())
+            ->method('isCronEnabled')
+            ->willReturn(true);
+        $this->expectHistoryReads([$latestCli], $latestCli, null);
+        $this->config
+            ->expects(self::exactly(6))
+            ->method('isActionEnabled')
+            ->willReturn(true);
+
+        $tester = $this->createCommandTester();
+
+        $tester->execute([]);
+
+        $display = $tester->getDisplay();
+
+        self::assertStringContainsString('Last CLI execution: 2026-04-03 09:45:00 | kick 11 | cache_flush | profile balanced', $display);
+        self::assertStringContainsString('Last cron execution: Never recorded.', $display);
+        self::assertStringContainsString('Cron notice: Cron is enabled but no cron execution has been recorded yet.', $display);
+        self::assertStringContainsString('- 2026-04-03 09:45:00 | cli | kick 11 | cache_flush | profile balanced', $display);
+    }
+
+    private function expectHistoryReads(array $historyRows, ?array $latestCli, ?array $latestCron): void
+    {
+        $this->executionHistoryStorage
+            ->expects(self::exactly(2))
+            ->method('getLatestForSource')
+            ->willReturnMap([
+                ['cli', $latestCli],
+                ['cron', $latestCron],
+            ]);
+
         $this->executionHistoryStorage
             ->expects(self::once())
             ->method('getRecent')
@@ -540,21 +656,25 @@ OUTPUT;
     private function createProfileStatusConfigDouble(
         string $configuredProfile,
         string $effectiveProfile,
-        ?string $fallbackReason
+        ?string $fallbackReason,
+        bool $cronEnabled = false
     ): Config
     {
-        return new class ($configuredProfile, $effectiveProfile, $fallbackReason) extends Config {
+        return new class ($configuredProfile, $effectiveProfile, $fallbackReason, $cronEnabled) extends Config {
             private string $configuredProfile;
 
             private string $effectiveProfile;
 
             private ?string $fallbackReason;
 
-            public function __construct(string $configuredProfile, string $effectiveProfile, ?string $fallbackReason)
+            private bool $cronEnabled;
+
+            public function __construct(string $configuredProfile, string $effectiveProfile, ?string $fallbackReason, bool $cronEnabled)
             {
                 $this->configuredProfile = $configuredProfile;
                 $this->effectiveProfile = $effectiveProfile;
                 $this->fallbackReason = $fallbackReason;
+                $this->cronEnabled = $cronEnabled;
             }
 
             public function isEnabled(string $scopeType = 'store', ?string $scopeCode = null): bool
@@ -580,6 +700,11 @@ OUTPUT;
             public function isActionEnabled(string $actionCode): bool
             {
                 return true;
+            }
+
+            public function isCronEnabled(string $scopeType = 'default', ?string $scopeCode = null): bool
+            {
+                return $this->cronEnabled;
             }
 
             public function getExecutionProfile(string $scopeType = 'default', ?string $scopeCode = null): string
