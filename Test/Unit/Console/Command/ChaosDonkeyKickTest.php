@@ -41,6 +41,7 @@ class ChaosDonkeyKickTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cli')
             ->willReturn([
                 'kick' => 3,
                 'outcome' => 'cache_flush',
@@ -72,6 +73,7 @@ class ChaosDonkeyKickTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cli')
             ->willReturn([
                 'kick' => 5,
                 'outcome' => 'indexer_status_snapshot',
@@ -106,6 +108,7 @@ class ChaosDonkeyKickTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cli')
             ->willReturn([
                 'kick' => 11,
                 'outcome' => 'napping',

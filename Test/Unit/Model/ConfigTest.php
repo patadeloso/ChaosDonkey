@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace ShaunMcManus\ChaosDonkey\Test\Unit\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -278,6 +279,7 @@ class ConfigTest extends TestCase
         self::assertSame('balanced', $config->getExecutionProfile());
     }
 
+    #[AllowMockObjectsWithoutExpectations]
     #[DataProvider('requiredExecutionProfileStatusMethodProvider')]
     public function testItExposesExecutionProfileMethodsRequiredByStatusCommand(
         string $methodName,

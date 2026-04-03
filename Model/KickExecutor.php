@@ -37,7 +37,8 @@ class KickExecutor
         private ActionPool $actionPool,
         private ProfiledRollSelector $profiledRollSelector,
         private StateWriter $stateWriter,
-        private KickRoller $kickRoller
+        private KickRoller $kickRoller,
+        private ExecutionHistoryStorage $executionHistoryStorage
     ) {
     }
 
@@ -48,7 +49,7 @@ class KickExecutor
      *     messages: list<string>
      * }
      */
-    public function execute(): array
+    public function execute(string $source): array
     {
         $messages = [];
         $enabledActions = $this->getEnabledActions();
@@ -94,9 +95,23 @@ class KickExecutor
             };
         }
 
-        $this->stateWriter->saveLastRun((new \DateTimeImmutable())->format(DATE_ATOM));
+        $executedAt = new \DateTimeImmutable();
+
+        $this->stateWriter->saveLastRun($executedAt->format(DATE_ATOM));
         $this->stateWriter->saveLastKick($kick);
         $this->stateWriter->saveLastOutcome($outcome);
+        try {
+            $this->executionHistoryStorage->append(
+                $executedAt->format('Y-m-d H:i:s'),
+                $source,
+                $kick,
+                $outcome,
+                $selection['configured_profile'],
+                $selection['effective_profile'],
+                $selection['fallback_reason']
+            );
+        } catch (\Throwable) {
+        }
 
         return [
             'kick' => $kick,

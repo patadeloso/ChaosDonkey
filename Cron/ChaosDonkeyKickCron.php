@@ -60,7 +60,7 @@ class ChaosDonkeyKickCron
 
         $this->logMessage(sprintf('Executing ChaosDonkey cron at hour %d.', $currentHour));
 
-        $result = $this->kickExecutor->execute();
+        $result = $this->kickExecutor->execute('cron');
 
         foreach ($result['messages'] as $message) {
             if (str_starts_with($message, 'Probe[') || str_starts_with($message, 'ProbeDetail[')) {

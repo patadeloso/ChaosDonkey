@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="shaunmcmanus_chaosdonkey_execution_history" resource="default" engine="innodb" comment="ChaosDonkey Execution History">
+        <column xsi:type="int" name="history_id" unsigned="true" nullable="false" identity="true" comment="History ID"/>
+        <column xsi:type="datetime" name="executed_at" nullable="false" comment="Executed At"/>
+        <column xsi:type="varchar" name="source" nullable="false" length="16" comment="Execution Source"/>
+        <column xsi:type="int" name="kick" unsigned="true" nullable="false" comment="Kick Value"/>
+        <column xsi:type="varchar" name="outcome" nullable="false" length="64" comment="Outcome Code"/>
+        <column xsi:type="varchar" name="configured_profile" nullable="false" length="32" comment="Configured Profile"/>
+        <column xsi:type="varchar" name="effective_profile" nullable="false" length="32" comment="Effective Profile"/>
+        <column xsi:type="varchar" name="fallback_reason" nullable="true" length="64" comment="Fallback Reason"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="history_id"/>
+        </constraint>
+    </table>
+</schema>
