@@ -4,6 +4,8 @@ declare(strict_types = 1);
 namespace ShaunMcManus\ChaosDonkey\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use ShaunMcManus\ChaosDonkey\Model\Profile\ProfiledRollSelector;
+use ShaunMcManus\ChaosDonkey\Model\Outcome\OutcomeCatalog;
 use Magento\Store\Model\ScopeInterface;
 
 class Config
@@ -21,16 +23,26 @@ class Config
     public const CONFIG_PATH_LAST_RUN = 'admin/chaos_donkey/last_run';
     public const CONFIG_PATH_LAST_KICK = 'admin/chaos_donkey/last_kick';
     public const CONFIG_PATH_LAST_OUTCOME = 'admin/chaos_donkey/last_outcome';
+    public const CONFIG_PATH_EXECUTION_PROFILE = 'admin/chaos_donkey/execution_profile';
+    public const DEFAULT_EXECUTION_PROFILE = 'balanced';
 
     /**
      * @var ScopeConfigInterface
      */
     private $scopeConfig;
 
+    private ProfiledRollSelector $profiledRollSelector;
+
+    private OutcomeCatalog $outcomeCatalog;
+
     public function __construct(
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        ?ProfiledRollSelector $profiledRollSelector = null,
+        ?OutcomeCatalog $outcomeCatalog = null
     ) {
         $this->scopeConfig = $scopeConfig;
+        $this->profiledRollSelector = $profiledRollSelector ?? new ProfiledRollSelector();
+        $this->outcomeCatalog = $outcomeCatalog ?? new OutcomeCatalog();
     }
 
     public function isEnabled(string $scopeType = ScopeInterface::SCOPE_STORE, ?string $scopeCode = null): bool
@@ -182,5 +194,49 @@ class Config
         $normalizedValue = trim((string) $value);
 
         return $normalizedValue === '' ? null : $normalizedValue;
+    }
+
+    public function getExecutionProfile(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): string
+    {
+        $value = $this->scopeConfig->getValue(self::CONFIG_PATH_EXECUTION_PROFILE, $scopeType, $scopeCode);
+
+        if ($value === null) {
+            return self::DEFAULT_EXECUTION_PROFILE;
+        }
+
+        $normalizedValue = trim((string) $value);
+
+        return $normalizedValue === '' ? self::DEFAULT_EXECUTION_PROFILE : $normalizedValue;
+    }
+
+    public function getEffectiveExecutionProfile(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): string
+    {
+        $profileResolution = $this->resolveExecutionProfile($scopeType, $scopeCode);
+
+        return $profileResolution['effective_profile'];
+    }
+
+    public function getExecutionProfileFallbackReason(string $scopeType = ScopeConfigInterface::SCOPE_TYPE_DEFAULT, ?string $scopeCode = null): ?string
+    {
+        $profileResolution = $this->resolveExecutionProfile($scopeType, $scopeCode);
+
+        return $profileResolution['fallback_reason'];
+    }
+
+    /**
+     * @return array{effective_profile: string, fallback_reason: string|null}
+     */
+    private function resolveExecutionProfile(string $scopeType, ?string $scopeCode): array
+    {
+        $resolution = $this->profiledRollSelector->resolveForSlot(
+            $this->getExecutionProfile($scopeType, $scopeCode),
+            $this->outcomeCatalog->getOutcomeCodes(),
+            1
+        );
+
+        return [
+            'effective_profile' => $resolution['effective_profile'],
+            'fallback_reason' => $resolution['fallback_reason'],
+        ];
     }
 }

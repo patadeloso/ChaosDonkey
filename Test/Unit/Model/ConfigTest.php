@@ -252,6 +252,83 @@ class ConfigTest extends TestCase
         self::assertSame('reindex', $config->getLastOutcome());
     }
 
+    public function testItReadsExecutionProfileKeyFromDefaultScopePath(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_EXECUTION_PROFILE, 'default', null)
+            ->willReturn('chaos');
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame('chaos', $config->getExecutionProfile());
+    }
+
+    public function testItDefaultsExecutionProfileToBalancedWhenUnset(): void
+    {
+        $this->scopeConfig
+            ->expects(self::once())
+            ->method('getValue')
+            ->with(Config::CONFIG_PATH_EXECUTION_PROFILE, 'default', null)
+            ->willReturn(null);
+
+        $config = new Config($this->scopeConfig);
+
+        self::assertSame('balanced', $config->getExecutionProfile());
+    }
+
+    #[DataProvider('requiredExecutionProfileStatusMethodProvider')]
+    public function testItExposesExecutionProfileMethodsRequiredByStatusCommand(
+        string $methodName,
+        string $expectedReturnType
+    ): void
+    {
+        $reflection = new \ReflectionClass(Config::class);
+
+        self::assertTrue(
+            $reflection->hasMethod($methodName),
+            sprintf('Expected Config to expose status profile method: %s', $methodName)
+        );
+
+        $method = $reflection->getMethod($methodName);
+
+        self::assertTrue(
+            $method->isPublic(),
+            sprintf('Expected Config status profile method to be public: %s', $methodName)
+        );
+
+        self::assertSame(
+            0,
+            $method->getNumberOfRequiredParameters(),
+            sprintf('Expected Config status profile method to be callable with no args: %s', $methodName)
+        );
+
+        self::assertLessThanOrEqual(
+            2,
+            $method->getNumberOfParameters(),
+            sprintf('Expected Config status profile method to use optional scope-style args: %s', $methodName)
+        );
+
+        $parameters = $method->getParameters();
+
+        if (isset($parameters[0])) {
+            self::assertTrue($parameters[0]->isOptional());
+            self::assertSame('scopeType', $parameters[0]->getName());
+            self::assertSame('string', (string) $parameters[0]->getType());
+        }
+
+        if (isset($parameters[1])) {
+            self::assertTrue($parameters[1]->isOptional());
+            self::assertSame('scopeCode', $parameters[1]->getName());
+            self::assertSame('string', $parameters[1]->getType()?->getName());
+            self::assertTrue($parameters[1]->allowsNull());
+        }
+
+        self::assertTrue($method->hasReturnType());
+        self::assertSame($expectedReturnType, (string) $method->getReturnType());
+    }
+
     public function testItTreatsEmptyStateValuesAsUnset(): void
     {
         $this->scopeConfig
@@ -318,6 +395,15 @@ class ConfigTest extends TestCase
                 'cron_queue_health_snapshot',
                 Config::CONFIG_PATH_ENABLE_CRON_QUEUE_HEALTH_SNAPSHOT,
             ],
+        ];
+    }
+
+    public static function requiredExecutionProfileStatusMethodProvider(): array
+    {
+        return [
+            'configured profile getter' => ['getExecutionProfile', 'string'],
+            'effective profile getter' => ['getEffectiveExecutionProfile', 'string'],
+            'fallback reason getter' => ['getExecutionProfileFallbackReason', '?string'],
         ];
     }
 }

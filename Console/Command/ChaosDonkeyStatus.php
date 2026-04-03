@@ -47,12 +47,25 @@ class ChaosDonkeyStatus extends Command
         $lastRun = $this->config->getLastRun() ?? 'Never';
         $lastKick = $this->config->getLastKick() ?? 'Never';
         $lastOutcome = $this->config->getLastOutcome() ?? 'Never';
+        $configuredProfile = $this->config->getExecutionProfile();
+        $effectiveProfile = $this->config->getEffectiveExecutionProfile();
+        $fallbackReason = $this->config->getExecutionProfileFallbackReason();
 
         $output->writeln('ChaosDonkey Status');
         $output->writeln('Enabled: ' . $enabled);
         $output->writeln('Last run: ' . $lastRun);
         $output->writeln('Last kick: ' . $lastKick);
         $output->writeln('Last outcome: ' . $lastOutcome);
+        $output->writeln('Configured profile: ' . $configuredProfile);
+        $output->writeln('Effective profile: ' . $effectiveProfile);
+
+        if ($fallbackReason !== null) {
+            $output->writeln('Fallback reason: ' . $fallbackReason);
+
+            if ($fallbackReason === 'invalid_fallback_profile') {
+                $output->writeln('Fallback mode: emergency_legacy_balanced_table');
+            }
+        }
 
         $output->writeln('');
         $output->writeln('Configured Action/Probe Toggles');

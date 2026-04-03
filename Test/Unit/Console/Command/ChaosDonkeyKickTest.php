@@ -99,4 +99,41 @@ class ChaosDonkeyKickTest extends TestCase
             preg_split('/\r?\n/', trim($tester->getDisplay()))
         );
     }
+
+    public function testItDoesNotPrintProfileFallbackMetadataInV1Output(): void
+    {
+        $this->config->expects(self::once())->method('isEnabled')->willReturn(true);
+        $this->kickExecutor
+            ->expects(self::once())
+            ->method('execute')
+            ->willReturn([
+                'kick' => 11,
+                'outcome' => 'napping',
+                'configured_profile' => 'custom_profile_that_falls_back',
+                'effective_profile' => 'balanced',
+                'fallback_reason' => 'invalid_configured_profile',
+                'messages' => [
+                    'ChaosDonkeyKick kicks your Magento. You rolled a 11',
+                    'The donkeys are napping',
+                ],
+            ]);
+
+        $command = new ChaosDonkeyKick($this->config, $this->kickExecutor);
+        $tester = new CommandTester($command);
+
+        $exitCode = $tester->execute([]);
+        $display = trim($tester->getDisplay());
+
+        self::assertSame(0, $exitCode);
+        self::assertSame(
+            [
+                'ChaosDonkeyKick kicks your Magento. You rolled a 11',
+                'The donkeys are napping',
+            ],
+            preg_split('/\r?\n/', $display)
+        );
+        self::assertStringNotContainsString('Configured profile:', $display);
+        self::assertStringNotContainsString('Effective profile:', $display);
+        self::assertStringNotContainsString('Fallback reason:', $display);
+    }
 }

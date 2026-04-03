@@ -3,11 +3,26 @@ declare(strict_types=1);
 
 namespace ShaunMcManus\ChaosDonkey\Model;
 
+use ShaunMcManus\ChaosDonkey\Model\Profile\ProfiledRollSelector;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 class KickExecutor
 {
-    private const MAX_REROLL_ATTEMPTS = 20;
+    /**
+     * Canonical outcome order. Keep aligned with OutcomeCatalog::getOutcomeCodes().
+     */
+    private const OUTCOME_CODES = [
+        'critical_failure',
+        'reindex_all',
+        'cache_flush',
+        'graphql_pipeline_stress',
+        'indexer_status_snapshot',
+        'cache_backend_health_snapshot',
+        'cron_queue_health_snapshot',
+        'napping',
+        'critical_success',
+    ];
+
     private const ACTION_CODES = [
         'reindex_all',
         'cache_flush',
@@ -20,7 +35,7 @@ class KickExecutor
     public function __construct(
         private Config $config,
         private ActionPool $actionPool,
-        private RollOutcomeResolver $resolver,
+        private ProfiledRollSelector $profiledRollSelector,
         private StateWriter $stateWriter,
         private KickRoller $kickRoller
     ) {
@@ -37,27 +52,19 @@ class KickExecutor
     {
         $messages = [];
         $enabledActions = $this->getEnabledActions();
+        $eligibleOutcomeCodes = $this->buildEligibleOutcomeCodes($enabledActions);
 
         if (!in_array(true, $enabledActions, true)) {
             $messages[] = 'All configured chaos actions/probes are disabled. Rolling non-action outcomes only.';
         }
 
-        $kick = 0;
-        $outcome = 'napping';
-
-        for ($attempt = 0; $attempt < self::MAX_REROLL_ATTEMPTS; $attempt++) {
-            $kick = $this->kickRoller->rollD20();
-            $outcome = $this->resolver->resolve($kick);
-
-            if (!$this->isDisabledActionOutcome($outcome, $enabledActions)) {
-                break;
-            }
-        }
-
-        if ($this->isDisabledActionOutcome($outcome, $enabledActions)) {
-            $outcome = 'napping';
-            $messages[] = 'Max reroll attempts reached. Falling back to napping.';
-        }
+        $kick = $this->kickRoller->rollD20();
+        $selection = $this->profiledRollSelector->resolveForSlot(
+            $this->config->getExecutionProfile(),
+            $eligibleOutcomeCodes,
+            $kick
+        );
+        $outcome = $selection['selected_outcome'];
 
         $messages[] = 'ChaosDonkeyKick kicks your Magento. You rolled a ' . $kick;
 
@@ -114,13 +121,23 @@ class KickExecutor
 
     /**
      * @param array<string, bool> $enabledActions
+     * @return array<int, string>
      */
-    private function isDisabledActionOutcome(string $outcome, array $enabledActions): bool
+    private function buildEligibleOutcomeCodes(array $enabledActions): array
     {
-        if (!array_key_exists($outcome, $enabledActions)) {
-            return false;
+        $eligibleOutcomeCodes = [];
+
+        foreach (self::OUTCOME_CODES as $outcomeCode) {
+            if (!in_array($outcomeCode, self::ACTION_CODES, true)) {
+                $eligibleOutcomeCodes[] = $outcomeCode;
+                continue;
+            }
+
+            if (($enabledActions[$outcomeCode] ?? false) === true) {
+                $eligibleOutcomeCodes[] = $outcomeCode;
+            }
         }
 
-        return $enabledActions[$outcome] === false;
+        return $eligibleOutcomeCodes;
     }
 }

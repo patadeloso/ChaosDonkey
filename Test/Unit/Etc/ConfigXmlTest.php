@@ -9,6 +9,19 @@ use PHPUnit\Framework\TestCase;
 
 class ConfigXmlTest extends TestCase
 {
+    public function testExecutionProfileDefaultsToBalanced(): void
+    {
+        $document = new DOMDocument();
+        $document->load(__DIR__ . '/../../../etc/config.xml');
+
+        $xpath = new DOMXPath($document);
+        $nodes = $xpath->query('/config/default/admin/chaos_donkey/execution_profile');
+
+        self::assertNotFalse($nodes);
+        self::assertSame(1, $nodes->length, 'Expected execution_profile default node to exist');
+        self::assertSame('balanced', trim((string) $nodes->item(0)->textContent));
+    }
+
     public function testProbeDefaultsAreEnabledByDefault(): void
     {
         $document = new DOMDocument();

@@ -11,6 +11,7 @@
                 <enable_indexer_status_snapshot>1</enable_indexer_status_snapshot>
                 <enable_cache_backend_health_snapshot>1</enable_cache_backend_health_snapshot>
                 <enable_cron_queue_health_snapshot>1</enable_cron_queue_health_snapshot>
+                <execution_profile>balanced</execution_profile>
                 <cron_enabled>0</cron_enabled>
                 <cron_expression>*/30 * * * *</cron_expression>
                 <cron_allowed_hours></cron_allowed_hours>
