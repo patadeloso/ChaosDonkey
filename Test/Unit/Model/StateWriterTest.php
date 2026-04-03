@@ -53,4 +53,5 @@ class StateWriterTest extends TestCase
 
         $stateWriter->saveLastOutcome('critical_success');
     }
+
 }

@@ -21,6 +21,17 @@ Rolls a D20 and executes an outcome selected from the active execution profile.
   - `admin/chaos_donkey/last_run` (ISO-8601 timestamp)
   - `admin/chaos_donkey/last_kick` (rolled value)
   - `admin/chaos_donkey/last_outcome` (outcome key)
+- Each executed run also appends a recent-history row to the module-owned `shaunmcmanus_chaosdonkey_execution_history` table.
+- Execution-history persistence is best-effort operator visibility, not a hard runtime dependency. If the history insert fails or the table is temporarily unavailable, `chaosdonkey:kick` still completes and still updates `last_run`, `last_kick`, and `last_outcome`; only the history row is skipped.
+- Recorded history fields are:
+  - `executed_at` (database `datetime` timestamp)
+  - `source` (`cli` for `chaosdonkey:kick`, `cron` for scheduled execution)
+  - `kick` (rolled value)
+  - `outcome` (selected outcome key)
+  - `configured_profile` (configured profile at execution time)
+  - `effective_profile` (runtime profile after fallback handling)
+  - `fallback_reason` (only when a fallback was needed)
+- Execution history intentionally does **not** persist the executor message payload, probe detail rows, or toggle snapshots. Those remain in command output and cron logs only.
 
 Execution profile setting:
 - Config path: `admin/chaos_donkey/execution_profile`
@@ -90,6 +101,10 @@ Cron execution skips when:
 
 When it does run, cron delegates to the same kick execution pipeline as `chaosdonkey:kick`, so execution profile selection, action/probe eligibility gating, and state persistence behave the same way.
 
+Because cron uses the same shared execution path, successful cron runs also append execution-history rows with `source=cron`.
+
+If cron history persistence fails or the history table is temporarily unavailable, cron still completes the kick path and still updates the shared `last_*` state snapshot; only the history row is skipped.
+
 Cron log behavior:
 - Always logs startup, skip reasons, and completion.
 - Logs only probe/probe-detail lines from command output (`Probe[...]`, `ProbeDetail[...]`) and preserves them unchanged.
@@ -105,6 +120,9 @@ Shows the operator-oriented status snapshot for ChaosDonkey.
 - Configured profile — reads `admin/chaos_donkey/execution_profile` from default scope.
 - Effective profile — resolved profile used at runtime after fallback handling.
 - Fallback reason (only when present) — indicates why configured and effective profiles differ.
+- Recent execution history — shows up to 5 most recent recorded executions. Each line includes the execution timestamp, source (`cli` or `cron`), rolled kick, selected outcome, and profile summary. When configured and effective profiles differ, the line shows `configured -> effective`; when a fallback reason exists, it is appended to that line.
+- Empty history behavior — prints `None recorded.` until the first successful CLI or cron execution is stored and readable.
+- Degraded history-read behavior — if recent-history lookup fails, `chaosdonkey:status` still renders the core operator snapshot and toggle section, and the recent-history block prints `History unavailable.` instead of aborting the command.
 - Configured Action/Probe Toggles (default scope):
   - `Reindex all: Enabled|Disabled`
   - `Cache flush: Enabled|Disabled`
@@ -113,7 +131,7 @@ Shows the operator-oriented status snapshot for ChaosDonkey.
   - `Cache backend health snapshot: Enabled|Disabled`
   - `Cron queue health snapshot: Enabled|Disabled`
 
-This makes the runtime values (last run/kick/outcome) and toggle rows explicit as `default` scope configuration, while module enabled state follows the existing store-scoped status command behavior.
+This makes the runtime values (last run/kick/outcome), bounded recent execution history, and toggle rows explicit as `default` scope configuration, while module enabled state follows the existing store-scoped status command behavior.
 
 ## Reindex Behavior
 

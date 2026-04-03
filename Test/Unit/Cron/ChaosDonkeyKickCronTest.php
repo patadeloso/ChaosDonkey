@@ -88,6 +88,7 @@ class ChaosDonkeyKickCronTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cron')
             ->willReturn([
                 'kick' => 5,
                 'outcome' => 'napping',
@@ -115,6 +116,7 @@ class ChaosDonkeyKickCronTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cron')
             ->willReturn([
                 'kick' => 5,
                 'outcome' => 'napping',
@@ -149,6 +151,7 @@ class ChaosDonkeyKickCronTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cron')
             ->willReturn([
                 'kick' => 5,
                 'outcome' => 'napping',
@@ -179,6 +182,7 @@ class ChaosDonkeyKickCronTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cron')
             ->willReturn([
                 'kick' => 5,
                 'outcome' => 'napping',
@@ -216,6 +220,7 @@ class ChaosDonkeyKickCronTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cron')
             ->willReturn([
                 'kick' => 5,
                 'outcome' => 'napping',
@@ -292,6 +297,7 @@ class ChaosDonkeyKickCronTest extends TestCase
         $this->kickExecutor
             ->expects(self::once())
             ->method('execute')
+            ->with('cron')
             ->willReturn([
                 'kick' => 11,
                 'outcome' => 'napping',

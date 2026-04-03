@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace ShaunMcManus\ChaosDonkey\Console\Command;
 
 use ShaunMcManus\ChaosDonkey\Model\Config;
+use ShaunMcManus\ChaosDonkey\Model\ExecutionHistoryStorage;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -19,12 +20,17 @@ class ChaosDonkeyStatus extends Command
         'cron_queue_health_snapshot' => 'Cron queue health snapshot',
     ];
 
+    private const RECENT_HISTORY_LIMIT = 5;
+
     private Config $config;
 
-    public function __construct(Config $config)
+    private ExecutionHistoryStorage $executionHistoryStorage;
+
+    public function __construct(Config $config, ExecutionHistoryStorage $executionHistoryStorage)
     {
         parent::__construct();
         $this->config = $config;
+        $this->executionHistoryStorage = $executionHistoryStorage;
     }
 
     /**
@@ -50,6 +56,14 @@ class ChaosDonkeyStatus extends Command
         $configuredProfile = $this->config->getExecutionProfile();
         $effectiveProfile = $this->config->getEffectiveExecutionProfile();
         $fallbackReason = $this->config->getExecutionProfileFallbackReason();
+        $recentHistoryUnavailable = false;
+
+        try {
+            $recentHistory = $this->executionHistoryStorage->getRecent(self::RECENT_HISTORY_LIMIT);
+        } catch (\Throwable) {
+            $recentHistoryUnavailable = true;
+            $recentHistory = [];
+        }
 
         $output->writeln('ChaosDonkey Status');
         $output->writeln('Enabled: ' . $enabled);
@@ -68,6 +82,19 @@ class ChaosDonkeyStatus extends Command
         }
 
         $output->writeln('');
+        $output->writeln('Recent execution history');
+
+        if ($recentHistoryUnavailable) {
+            $output->writeln('History unavailable.');
+        } elseif ($recentHistory === []) {
+            $output->writeln('None recorded.');
+        } else {
+            foreach ($recentHistory as $historyRow) {
+                $output->writeln($this->formatRecentHistoryRow($historyRow));
+            }
+        }
+
+        $output->writeln('');
         $output->writeln('Configured Action/Probe Toggles');
 
         foreach (self::ACTION_LABELS as $actionCode => $label) {
@@ -75,5 +102,29 @@ class ChaosDonkeyStatus extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    private function formatRecentHistoryRow(array $historyRow): string
+    {
+        $profileSummary = (string) $historyRow['configured_profile'];
+
+        if ((string) $historyRow['configured_profile'] !== (string) $historyRow['effective_profile']) {
+            $profileSummary .= ' -> ' . (string) $historyRow['effective_profile'];
+        }
+
+        $line = sprintf(
+            '- %s | %s | kick %s | %s | profile %s',
+            (string) $historyRow['executed_at'],
+            (string) $historyRow['source'],
+            (string) $historyRow['kick'],
+            (string) $historyRow['outcome'],
+            $profileSummary
+        );
+
+        if ($historyRow['fallback_reason'] !== null && $historyRow['fallback_reason'] !== '') {
+            $line .= ' | fallback ' . (string) $historyRow['fallback_reason'];
+        }
+
+        return $line;
     }
 }

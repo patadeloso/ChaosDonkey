@@ -45,7 +45,7 @@ class ChaosDonkeyKick extends Command
             return Command::SUCCESS;
         }
 
-        $result = $this->kickExecutor->execute();
+        $result = $this->kickExecutor->execute('cli');
 
         foreach ($result['messages'] as $message) {
             $output->writeln($message);

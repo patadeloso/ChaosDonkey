@@ -5,21 +5,26 @@ namespace ShaunMcManus\ChaosDonkey\Test\Unit\Console\Command;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use ShaunMcManus\ChaosDonkey\Console\Command\ChaosDonkeyStatus;
 use ShaunMcManus\ChaosDonkey\Model\Config;
+use ShaunMcManus\ChaosDonkey\Model\ExecutionHistoryStorage;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class ChaosDonkeyStatusTest extends TestCase
 {
     private Config&MockObject $config;
 
+    private ExecutionHistoryStorage&MockObject $executionHistoryStorage;
+
     protected function setUp(): void
     {
-        $this->config = $this->createMock(Config::class);
+        $this->executionHistoryStorage = $this->createMock(ExecutionHistoryStorage::class);
     }
 
     public function testItDisplaysCurrentStatusValues(): void
     {
+        $this->config = $this->createMock(Config::class);
         $this->config
             ->expects(self::once())
             ->method('isEnabled')
@@ -48,9 +53,9 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
+        $this->expectRecentHistory([]);
 
-        $command = new ChaosDonkeyStatus($this->config);
-        $tester = new CommandTester($command);
+        $tester = $this->createCommandTester();
 
         $exitCode = $tester->execute([]);
         $display = $tester->getDisplay();
@@ -63,10 +68,13 @@ class ChaosDonkeyStatusTest extends TestCase
         self::assertStringContainsString('Last outcome: reindex_all', $display);
         self::assertStringContainsString('Configured profile: balanced', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Recent execution history', $display);
+        self::assertStringContainsString('None recorded.', $display);
     }
 
     public function testItDisplaysUnknownWhenNoSavedStateExists(): void
     {
+        $this->config = $this->createMock(Config::class);
         $this->config
             ->expects(self::once())
             ->method('isEnabled')
@@ -95,9 +103,9 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
+        $this->expectRecentHistory([]);
 
-        $command = new ChaosDonkeyStatus($this->config);
-        $tester = new CommandTester($command);
+        $tester = $this->createCommandTester();
 
         $exitCode = $tester->execute([]);
 
@@ -110,11 +118,14 @@ class ChaosDonkeyStatusTest extends TestCase
         self::assertStringContainsString('Last outcome: Never', $display);
         self::assertStringContainsString('Configured profile: balanced', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Recent execution history', $display);
+        self::assertStringContainsString('None recorded.', $display);
 
     }
 
     public function testItDisplaysCurrentStatusWithActionAndProbeToggles(): void
     {
+        $this->config = $this->createMock(Config::class);
         $actionStates = [
             'reindex_all' => true,
             'cache_flush' => false,
@@ -154,6 +165,7 @@ class ChaosDonkeyStatusTest extends TestCase
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
+        $this->expectRecentHistory([]);
         $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
@@ -163,8 +175,7 @@ class ChaosDonkeyStatusTest extends TestCase
                 return $actionStates[$code];
             });
 
-        $command = new ChaosDonkeyStatus($this->config);
-        $tester = new CommandTester($command);
+        $tester = $this->createCommandTester();
 
         $exitCode = $tester->execute([]);
         $display = trim($tester->getDisplay());
@@ -177,6 +188,9 @@ Last kick: 2
 Last outcome: reindex_all
 Configured profile: balanced
 Effective profile: balanced
+
+Recent execution history
+None recorded.
 
 Configured Action/Probe Toggles
 Reindex all: Enabled
@@ -207,6 +221,7 @@ OUTPUT;
 
     public function testItDisplaysDisabledModuleAndMixedToggles(): void
     {
+        $this->config = $this->createMock(Config::class);
         $actionStates = [
             'reindex_all' => false,
             'cache_flush' => false,
@@ -246,6 +261,7 @@ OUTPUT;
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
+        $this->expectRecentHistory([]);
         $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
@@ -255,8 +271,7 @@ OUTPUT;
                 return $actionStates[$code];
             });
 
-        $command = new ChaosDonkeyStatus($this->config);
-        $tester = new CommandTester($command);
+        $tester = $this->createCommandTester();
 
         $tester->execute([]);
 
@@ -268,6 +283,8 @@ OUTPUT;
         self::assertStringContainsString('Last outcome: Never', $display);
         self::assertStringContainsString('Configured profile: balanced', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
+        self::assertStringContainsString('Recent execution history', $display);
+        self::assertStringContainsString('None recorded.', $display);
         self::assertStringContainsString('Configured Action/Probe Toggles', $display);
         self::assertStringContainsString('Reindex all: Disabled', $display);
         self::assertStringContainsString('GraphQL pipeline stress: Enabled', $display);
@@ -288,8 +305,106 @@ OUTPUT;
         self::assertStringNotContainsString('napping', $display);
     }
 
+    public function testItDisplaysSafeHistoryPlaceholderWhenRecentHistoryReadFails(): void
+    {
+        $this->config = $this->createMock(Config::class);
+        $actionStates = [
+            'reindex_all' => true,
+            'cache_flush' => false,
+            'graphql_pipeline_stress' => true,
+            'indexer_status_snapshot' => true,
+            'cache_backend_health_snapshot' => false,
+            'cron_queue_health_snapshot' => true,
+        ];
+
+        $requestedActionCodes = [];
+
+        $this->config
+            ->expects(self::once())
+            ->method('isEnabled')
+            ->willReturn(true);
+        $this->config
+            ->expects(self::once())
+            ->method('getLastRun')
+            ->willReturn('2026-03-28T20:22:00+00:00');
+        $this->config
+            ->expects(self::once())
+            ->method('getLastKick')
+            ->willReturn('2');
+        $this->config
+            ->expects(self::once())
+            ->method('getLastOutcome')
+            ->willReturn('reindex_all');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getEffectiveExecutionProfile')
+            ->willReturn('balanced');
+        $this->config
+            ->expects(self::once())
+            ->method('getExecutionProfileFallbackReason')
+            ->willReturn(null);
+        $this->executionHistoryStorage
+            ->expects(self::once())
+            ->method('getRecent')
+            ->with(5)
+            ->willThrowException(new RuntimeException('history query failed'));
+        $this->config
+            ->expects(self::exactly(6))
+            ->method('isActionEnabled')
+            ->willReturnCallback(function (string $code) use (&$requestedActionCodes, $actionStates): bool {
+                $requestedActionCodes[] = $code;
+
+                return $actionStates[$code];
+            });
+
+        $tester = $this->createCommandTester();
+
+        $exitCode = $tester->execute([]);
+        $display = trim($tester->getDisplay());
+
+        $expectedOutput = <<<OUTPUT
+ChaosDonkey Status
+Enabled: Yes
+Last run: 2026-03-28T20:22:00+00:00
+Last kick: 2
+Last outcome: reindex_all
+Configured profile: balanced
+Effective profile: balanced
+
+Recent execution history
+History unavailable.
+
+Configured Action/Probe Toggles
+Reindex all: Enabled
+Cache flush: Disabled
+GraphQL pipeline stress: Enabled
+Indexer status snapshot: Enabled
+Cache backend health snapshot: Disabled
+Cron queue health snapshot: Enabled
+OUTPUT;
+
+        self::assertSame(0, $exitCode);
+        self::assertSame($expectedOutput, $display);
+        self::assertSame(
+            [
+                'reindex_all',
+                'cache_flush',
+                'graphql_pipeline_stress',
+                'indexer_status_snapshot',
+                'cache_backend_health_snapshot',
+                'cron_queue_health_snapshot',
+            ],
+            $requestedActionCodes
+        );
+    }
+
     public function testItShowsAllDisabledTogglesAsDisabled(): void
     {
+        $this->config = $this->createMock(Config::class);
         $this->config
             ->expects(self::once())
             ->method('isEnabled')
@@ -318,13 +433,13 @@ OUTPUT;
             ->expects(self::once())
             ->method('getExecutionProfileFallbackReason')
             ->willReturn(null);
+        $this->expectRecentHistory([]);
         $this->config
             ->expects(self::exactly(6))
             ->method('isActionEnabled')
             ->willReturn(false);
 
-        $command = new ChaosDonkeyStatus($this->config);
-        $tester = new CommandTester($command);
+        $tester = $this->createCommandTester();
 
         $tester->execute([]);
 
@@ -350,9 +465,28 @@ OUTPUT;
             effectiveProfile: 'balanced',
             fallbackReason: 'invalid_profile_table'
         );
+        $this->expectRecentHistory([
+            [
+                'executed_at' => '2026-04-02 10:15:00',
+                'source' => 'cron',
+                'kick' => '7',
+                'outcome' => 'napping',
+                'configured_profile' => 'balanced',
+                'effective_profile' => 'balanced',
+                'fallback_reason' => null,
+            ],
+            [
+                'executed_at' => '2026-04-02 09:45:00',
+                'source' => 'cli',
+                'kick' => '3',
+                'outcome' => 'cache_flush',
+                'configured_profile' => 'chaos',
+                'effective_profile' => 'balanced',
+                'fallback_reason' => 'invalid_profile_table',
+            ],
+        ]);
 
-        $command = new ChaosDonkeyStatus($config);
-        $tester = new CommandTester($command);
+        $tester = new CommandTester(new ChaosDonkeyStatus($config, $this->executionHistoryStorage));
 
         $tester->execute([]);
 
@@ -361,6 +495,9 @@ OUTPUT;
         self::assertStringContainsString('Configured profile: chaos', $display);
         self::assertStringContainsString('Effective profile: balanced', $display);
         self::assertStringContainsString('Fallback reason: invalid_profile_table', $display);
+        self::assertStringContainsString('Recent execution history', $display);
+        self::assertStringContainsString('- 2026-04-02 10:15:00 | cron | kick 7 | napping | profile balanced', $display);
+        self::assertStringContainsString('- 2026-04-02 09:45:00 | cli | kick 3 | cache_flush | profile chaos -> balanced | fallback invalid_profile_table', $display);
     }
 
     public function testItDisplaysEmergencyFallbackContractForCorruptBalancedProfile(): void
@@ -370,9 +507,9 @@ OUTPUT;
             effectiveProfile: 'balanced',
             fallbackReason: 'invalid_fallback_profile'
         );
+        $this->expectRecentHistory([]);
 
-        $command = new ChaosDonkeyStatus($config);
-        $tester = new CommandTester($command);
+        $tester = new CommandTester(new ChaosDonkeyStatus($config, $this->executionHistoryStorage));
 
         $tester->execute([]);
 
@@ -382,6 +519,22 @@ OUTPUT;
         self::assertStringContainsString('Effective profile: balanced', $display);
         self::assertStringContainsString('Fallback reason: invalid_fallback_profile', $display);
         self::assertStringContainsString('Fallback mode: emergency_legacy_balanced_table', $display);
+        self::assertStringContainsString('Recent execution history', $display);
+        self::assertStringContainsString('None recorded.', $display);
+    }
+
+    private function expectRecentHistory(array $historyRows): void
+    {
+        $this->executionHistoryStorage
+            ->expects(self::once())
+            ->method('getRecent')
+            ->with(5)
+            ->willReturn($historyRows);
+    }
+
+    private function createCommandTester(): CommandTester
+    {
+        return new CommandTester(new ChaosDonkeyStatus($this->config, $this->executionHistoryStorage));
     }
 
     private function createProfileStatusConfigDouble(
