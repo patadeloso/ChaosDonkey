@@ -17,5 +17,10 @@ interface AdapterInterface
      */
     public function fetchOne(string $sql, array $bind = []): mixed;
 
+    /**
+     * @param array<string, mixed> $bind
+     */
+    public function fetchRow(string $sql, array $bind = []): array|false;
+
     public function fetchAll(string $sql, array $bind = []): array;
 }

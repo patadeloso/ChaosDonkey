@@ -62,10 +62,14 @@ Probe actions return their output as canonical lines in the command result paylo
 
 `chaosdonkey:kick` prints each line from the executor payload as-is, without reformatting.
 
-### Task 8 verification evidence
+### Recent verification evidence
 
 Executed in-repo in this worktree:
 
+- Composer validation:
+  - `composer validate --no-check-publish`
+- Targeted storage test:
+  - `vendor/bin/phpunit Test/Unit/Model/ExecutionHistoryStorageTest.php`
 - Targeted kick command test:
   - `vendor/bin/phpunit Test/Unit/Console/Command/ChaosDonkeyKickTest.php`
 - Targeted status command test:
@@ -120,9 +124,13 @@ Shows the operator-oriented status snapshot for ChaosDonkey.
 - Configured profile — reads `admin/chaos_donkey/execution_profile` from default scope.
 - Effective profile — resolved profile used at runtime after fallback handling.
 - Fallback reason (only when present) — indicates why configured and effective profiles differ.
+- Last CLI execution — shows the latest readable `source=cli` history row as `timestamp | kick <n> | <outcome> | profile <configured>` and includes `configured -> effective` plus `fallback <reason>` when applicable.
+- Last cron execution — shows the latest readable `source=cron` history row in the same summary format.
+- Empty source-aware history behavior — prints `Never recorded.` for a source when no readable history row exists for that source.
+- Soft cron visibility notice — when cron is enabled but no readable `source=cron` history row exists yet, `chaosdonkey:status` prints `Cron notice: Cron is enabled but no cron execution has been recorded yet.`
 - Recent execution history — shows up to 5 most recent recorded executions. Each line includes the execution timestamp, source (`cli` or `cron`), rolled kick, selected outcome, and profile summary. When configured and effective profiles differ, the line shows `configured -> effective`; when a fallback reason exists, it is appended to that line.
 - Empty history behavior — prints `None recorded.` until the first successful CLI or cron execution is stored and readable.
-- Degraded history-read behavior — if recent-history lookup fails, `chaosdonkey:status` still renders the core operator snapshot and toggle section, and the recent-history block prints `History unavailable.` instead of aborting the command.
+- Degraded history-read behavior — if source-aware or recent-history lookup fails, `chaosdonkey:status` still renders the core operator snapshot and toggle section, the `Last CLI execution` / `Last cron execution` lines print `History unavailable.`, and the recent-history block prints `History unavailable.` instead of aborting the command.
 - Configured Action/Probe Toggles (default scope):
   - `Reindex all: Enabled|Disabled`
   - `Cache flush: Enabled|Disabled`

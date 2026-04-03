@@ -104,4 +104,92 @@ class ExecutionHistoryStorageTest extends TestCase
 
         self::assertSame($expectedRows, $storage->getRecent(5));
     }
+
+    public function testItReturnsLatestExecutionHistoryRowForCliSource(): void
+    {
+        $expectedRow = [
+            'history_id' => 9,
+            'executed_at' => '2026-04-03 09:15:00',
+            'source' => 'cli',
+            'kick' => 18,
+            'outcome' => 'critical_success',
+            'configured_profile' => 'chaos',
+            'effective_profile' => 'chaos',
+            'fallback_reason' => null,
+        ];
+
+        $this->resourceConnection
+            ->expects(self::once())
+            ->method('getTableName')
+            ->with('shaunmcmanus_chaosdonkey_execution_history')
+            ->willReturn('prefix_shaunmcmanus_chaosdonkey_execution_history');
+
+        $this->resourceConnection
+            ->expects(self::once())
+            ->method('getConnection')
+            ->willReturn($this->connection);
+
+        $this->connection
+            ->expects(self::once())
+            ->method('fetchRow')
+            ->with(
+                self::callback(static function (string $sql): bool {
+                    return str_contains($sql, 'history_id, executed_at, source, kick, outcome, configured_profile, effective_profile, fallback_reason')
+                        && str_contains($sql, 'prefix_shaunmcmanus_chaosdonkey_execution_history')
+                        && str_contains($sql, 'WHERE source = :source')
+                        && str_contains($sql, 'ORDER BY history_id DESC')
+                        && str_contains($sql, 'LIMIT 1');
+                }),
+                ['source' => 'cli']
+            )
+            ->willReturn($expectedRow);
+
+        $storage = new ExecutionHistoryStorage($this->resourceConnection);
+
+        self::assertSame($expectedRow, $storage->getLatestForSource('cli'));
+    }
+
+    public function testItReturnsLatestExecutionHistoryRowForCronSource(): void
+    {
+        $expectedRow = [
+            'history_id' => 12,
+            'executed_at' => '2026-04-03 10:45:00',
+            'source' => 'cron',
+            'kick' => 7,
+            'outcome' => 'napping',
+            'configured_profile' => 'balanced',
+            'effective_profile' => 'balanced',
+            'fallback_reason' => null,
+        ];
+
+        $this->resourceConnection
+            ->expects(self::once())
+            ->method('getTableName')
+            ->with('shaunmcmanus_chaosdonkey_execution_history')
+            ->willReturn('prefix_shaunmcmanus_chaosdonkey_execution_history');
+
+        $this->resourceConnection
+            ->expects(self::once())
+            ->method('getConnection')
+            ->willReturn($this->connection);
+
+        $this->connection
+            ->expects(self::once())
+            ->method('fetchRow')
+            ->with(
+                self::callback(static function (string $sql): bool {
+                    return str_contains($sql, 'history_id, executed_at, source, kick, outcome, configured_profile, effective_profile, fallback_reason')
+                        && str_contains($sql, 'prefix_shaunmcmanus_chaosdonkey_execution_history')
+                        && str_contains($sql, 'WHERE source = :source')
+                        && str_contains($sql, 'ORDER BY history_id DESC')
+                        && str_contains($sql, 'LIMIT 1');
+                }),
+                ['source' => 'cron']
+            )
+            ->willReturn($expectedRow);
+
+        $storage = new ExecutionHistoryStorage($this->resourceConnection);
+
+        self::assertSame($expectedRow, $storage->getLatestForSource('cron'));
+    }
 }
