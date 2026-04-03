@@ -138,7 +138,7 @@ class TypedClassConstantCompatibilityTest extends TestCase
             }
 
             $equalIndex = $this->findNextEqualsToken($tokens, $i + 1);
-            if ($equalIndex === null) {
+            if (!is_int($equalIndex)) {
                 continue;
             }
 
@@ -153,9 +153,6 @@ class TypedClassConstantCompatibilityTest extends TestCase
         return $matches;
     }
 
-    /**
-     * @return array<int, array<int, string>>
-     */
     private function findNextEqualsToken(array $tokens, int $startIndex): ?int
     {
         $tokenCount = count($tokens);
