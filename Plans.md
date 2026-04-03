@@ -25,3 +25,13 @@ Purpose: Make execution history best-effort operator visibility instead of a har
 | 6.1 | Degrade gracefully when execution-history writes fail | CLI and cron executions still complete and keep `last_*` state updates when history insertion fails or the table is unavailable, proven by targeted automated tests | Phase 5 | cc:完了 |
 | 6.2 | Degrade gracefully when status history reads fail | `chaosdonkey:status` still renders the core operator snapshot and a safe history placeholder when history queries fail, proven by command tests | 6.1 | cc:完了 |
 | 6.3 | Re-document degraded-history behavior and re-verify the branch | `README.md` documents degraded history behavior and `composer validate --no-check-publish` plus `vendor/bin/phpunit` pass after the hardening changes | 6.2 | cc:完了 |
+
+## Phase 7: Source-aware execution health
+
+Purpose: Turn execution history into a clearer operator snapshot by showing the latest CLI and cron executions and surfacing a soft cron-visibility notice in `chaosdonkey:status`.
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 7.1 | Add source-aware execution-history reads for the latest CLI and cron runs | `ExecutionHistoryStorage` exposes tested reads for the most recent `cli` and `cron` rows without regressing the existing bounded recent-history query | Phase 6 | cc:TODO |
+| 7.2 | Extend `chaosdonkey:status` with last CLI/cron execution lines and a soft cron notice | Command output shows last CLI execution, last cron execution, and a soft notice when cron is enabled but no cron history exists, proven by command tests and preserving degraded-history behavior | 7.1 | cc:TODO |
+| 7.3 | Document source-aware status health and re-verify the branch | `README.md` explains the new status-health lines and `composer validate --no-check-publish` plus `vendor/bin/phpunit` pass after the changes | 7.2 | cc:TODO |
