@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace ShaunMcManus\ChaosDonkey\Test\Unit\Etc;
 
 use DOMDocument;
+use DOMElement;
+use DOMNode;
 use DOMXPath;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -21,13 +23,11 @@ class SystemXmlTest extends TestCase
         self::assertNotFalse($nodes);
         self::assertSame(1, $nodes->length, 'Expected execution_profile field to be defined');
 
-        $field = $nodes->item(0);
-
-        self::assertInstanceOf(\DOMElement::class, $field);
-        self::assertSame('select', $field->getAttribute('type'));
-        self::assertSame('1', $field->getAttribute('showInDefault'));
-        self::assertSame('0', $field->getAttribute('showInWebsite'));
-        self::assertSame('0', $field->getAttribute('showInStore'));
+        $field = $this->requireElement($nodes->item(0), 'Expected execution_profile field node to be a DOMElement');
+        self::assertSame('select', $this->requireAttributeValue($field, 'type', 'Expected execution_profile type attribute'));
+        self::assertSame('1', $this->requireAttributeValue($field, 'showInDefault', 'Expected execution_profile showInDefault attribute'));
+        self::assertSame('0', $this->requireAttributeValue($field, 'showInWebsite', 'Expected execution_profile showInWebsite attribute'));
+        self::assertSame('0', $this->requireAttributeValue($field, 'showInStore', 'Expected execution_profile showInStore attribute'));
 
         $sourceNodes = $xpath->query('source_model', $field);
 
@@ -57,13 +57,11 @@ class SystemXmlTest extends TestCase
         self::assertNotFalse($nodes);
         self::assertSame(1, $nodes->length, sprintf('Expected field %s to be defined', $fieldId));
 
-        $field = $nodes->item(0);
-
-        self::assertInstanceOf(\DOMElement::class, $field);
-        self::assertSame('select', $field->getAttribute('type'));
-        self::assertSame('1', $field->getAttribute('showInDefault'));
-        self::assertSame('0', $field->getAttribute('showInWebsite'));
-        self::assertSame('0', $field->getAttribute('showInStore'));
+        $field = $this->requireElement($nodes->item(0), sprintf('Expected field %s node to be a DOMElement', $fieldId));
+        self::assertSame('select', $this->requireAttributeValue($field, 'type', sprintf('Expected %s type attribute', $fieldId)));
+        self::assertSame('1', $this->requireAttributeValue($field, 'showInDefault', sprintf('Expected %s showInDefault attribute', $fieldId)));
+        self::assertSame('0', $this->requireAttributeValue($field, 'showInWebsite', sprintf('Expected %s showInWebsite attribute', $fieldId)));
+        self::assertSame('0', $this->requireAttributeValue($field, 'showInStore', sprintf('Expected %s showInStore attribute', $fieldId)));
 
         $labelNodes = $xpath->query('label', $field);
         self::assertNotFalse($labelNodes);
@@ -100,5 +98,25 @@ class SystemXmlTest extends TestCase
                 'When enabled, the command can trigger a cron and queue health probe.',
             ],
         ];
+    }
+
+    private function requireElement(?DOMNode $node, string $message): DOMElement
+    {
+        if (!$node instanceof DOMElement) {
+            self::fail($message);
+        }
+
+        return $node;
+    }
+
+    private function requireAttributeValue(DOMElement $element, string $attributeName, string $message): string
+    {
+        $attribute = $element->attributes?->getNamedItem($attributeName);
+
+        if ($attribute === null || $attribute->nodeValue === null) {
+            self::fail($message);
+        }
+
+        return $attribute->nodeValue;
     }
 }
